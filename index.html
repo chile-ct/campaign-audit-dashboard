@@ -817,7 +817,8 @@ function renderSupplyDemandCheck(v){
 }
 
 
-const EXCLUDED_CAMPAIGNS = new Set(['(none)', '(referral)']);
+const EXCLUDED_CAMPAIGNS = new Set(['(none)', '(referral)', '(organic)']);
+const EXCLUDED_NAME_PATTERN = /install/i;
 
 function getActiveCampaignRows(v){
   let rows;
@@ -841,7 +842,7 @@ function getActiveCampaignRows(v){
       return [campaign, channel, dau, 0, adview, lead, totalLead];
     });
   }
-  return rows.filter(r => !EXCLUDED_CAMPAIGNS.has(r[0]));
+  return rows.filter(r => !EXCLUDED_CAMPAIGNS.has(r[0]) && !EXCLUDED_NAME_PATTERN.test(r[0]));
 }
 
 function getFilteredSortedRows(v){
