@@ -566,11 +566,18 @@ function metricBadge(val, threshold, higherIsBetter=true){
   return pass ? '#2ecc71' : '#FF2636';
 }
 
+const METRIC_EXPLAIN = {
+  'Ad Coverage': 'nhiều tin đăng không lên được impression — vấn đề phân phối/ranking.',
+  'Buyer Coverage': 'nhiều buyer đang tìm nhưng không thấy tin phù hợp — vấn đề matching.',
+  'Demand Balance': 'lượng tương tác sau khi xem thấp so với kỳ vọng — có buyer nhưng engagement yếu.',
+  'Supply Balance': 'thiếu tin đăng so với nhu cầu ở nhiều phân khúc — undersupply.'
+};
+
 function renderSupplyDemandCheck(v){
   const groups = SUPPLY_DEMAND_METRICS[v] || [];
-  const worstFail = groups.some(g => g.adCoverage<0.70 || g.buyerCoverage<0.70 || g.demandBalance<0.50 || g.supplyBalance<1.0);
-  const badgeColor = worstFail ? '#FFBA00' : '#2ecc71';
-  const badgeText = worstFail ? '⚠️ Có điểm cần theo dõi' : '✅ Marketplace khỏe';
+  const overallFail = groups.some(g => g.adCoverage<0.70 || g.buyerCoverage<0.70 || g.demandBalance<0.50 || g.supplyBalance<1.0);
+  const badgeColor = overallFail ? '#FFBA00' : '#2ecc71';
+  const badgeText = overallFail ? '⚠️ Có điểm cần theo dõi' : '✅ Marketplace khỏe';
 
   const cards = groups.map(g=>{
     const metrics = [
@@ -579,8 +586,11 @@ function renderSupplyDemandCheck(v){
       {label:'Demand Balance', val:g.demandBalance, threshold:0.50},
       {label:'Supply Balance', val:g.supplyBalance, threshold:1.0},
     ];
+    const failing = [];
     const rows = metrics.map(m=>{
       const color = metricBadge(m.val, m.threshold);
+      const isFail = color === '#FF2636';
+      if (isFail) failing.push(m.label);
       const displayVal = m.val < 10 ? m.val.toFixed(2) : m.val.toFixed(0);
       const barWidth = Math.min(100, (m.val / (m.threshold*2)) * 100);
       return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
@@ -588,18 +598,21 @@ function renderSupplyDemandCheck(v){
     const extra = [];
     if (g.conversionIssuePct !== undefined) extra.push(`Conversion issue: <b>${pct(g.conversionIssuePct)}</b> segment`);
     if (g.demandIssuePct !== undefined) extra.push(`Demand issue: <b>${pct(g.demandIssuePct)}</b> segment`);
+    const groupBadge = failing.length ? `<span class="badge" style="background:#FF263622;color:#ff6b76;margin-left:8px;">⚠️ ${failing.join(', ')} thấp</span>` : `<span class="badge" style="background:#2ecc7122;color:#2ecc71;margin-left:8px;">✅ Khỏe</span>`;
+    const explainHtml = failing.length ? `<div style="font-size:11.5px;color:#ff9b9b;margin-top:8px;border-left:2px solid #FF2636;padding-left:8px;">${failing.map(f=>`<b>${f}</b> thấp → ${METRIC_EXPLAIN[f]}`).join('<br>')}</div>` : '';
     return `
     <div class="channel-box">
-      <div class="ch-title"><span>${g.name}</span></div>
+      <div class="ch-title"><span>${g.name}</span>${groupBadge}</div>
       ${rows}
       ${extra.length ? `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">${extra.join(' · ')}</div>` : ''}
+      ${explainHtml}
     </div>`;
   }).join('');
 
   return `
   <div class="panel">
     <h2>Cross-check Marketplace Supply-Demand <span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:${badgeColor}22;color:${badgeColor};margin-left:8px;">${badgeText}</span></h2>
-    <div class="desc">Số liệu ngày 13/7. Ngưỡng khỏe: Ad/Buyer Coverage ≥ 70%, Demand/Supply Balance ≥ 1.0 (0.5 cho demand). Root cause chi tiết của từng campaign nằm trong bảng Campaign Detail bên dưới — click vào campaign để xem.</div>
+    <div class="desc">Số liệu ngày 13/7. Ngưỡng khỏe: Ad/Buyer Coverage ≥ 70%, Demand Balance ≥ 0.5, Supply Balance ≥ 1.0.</div>
     <div class="channel-split">${cards}</div>
   </div>`;
 }
