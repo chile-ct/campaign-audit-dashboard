@@ -394,16 +394,46 @@ veh: [
 };
 
 const FLAGS = {
-"digital_dau_veh_car_all_gg_pmax_adview_vnd": {level:"red", text:"XÁC NHẬN LẠI (đã đối chiếu YTD + supply-demand): CR ổn định thấp 4.1-6.4% suốt từ tháng 3 đến nay (không phải sự cố nhất thời) — đây là vấn đề CẤU TRÚC, không phải cú sốc. Cross-check marketplace-supply-demand cho veh-car: ad_coverage 99.2%, buyer_coverage 91.6%, chỉ 1/1969 segment có vấn đề 'conversion' — nghĩa là marketplace HOÀN TOÀN KHỎE, vấn đề 100% nằm ở chất lượng audience của campaign này, không phải thiếu tin đăng. Fix: đổi objective sang lead (giữ nguyên landing), ưu tiên cao vì đây là campaign volume lớn nhất veh (75-112K DAU/tháng)."},
-"digital_dau_veh_car_all_gg_pmax_lead_vnd": {level:"yellow", text:"MỚI PHÁT HIỆN (từ trend tháng): CR đang XÓI MÒN dần theo thời gian — Mar 7.5% → Apr 6.7% → May 5.7% → Jun 5.7% → Jul 5.8%. Objective 'lead' vẫn tốt hơn 'adview' nhưng khoảng cách đang thu hẹp khi budget scale lên (22K→46K DAU). Nghi vấn: PMax tự động mở rộng audience khi tăng budget, pha loãng chất lượng. Khuyến nghị: theo dõi sát, cân nhắc cap budget hoặc thắt lại audience signal trước khi tiếp tục scale."},
-"digital_dau_pty_sell_land_hcm_pmax_adview_2025": {level:"red", text:"ĐIỀU CHỈNH ROOT CAUSE QUAN TRỌNG: dữ liệu 30 ngày cho CR 1.4%, nhưng nhìn theo tháng thì đây là CÚ RƠI ĐỘT NGỘT trong tháng 7 (CR Jan-Jun dao động ổn định 4.3-6.8%, riêng Jul rơi thẳng xuống 0.74% trong khi DAU lại TĂNG từ 19K→31K). Đây KHÔNG còn là vấn đề 'chọn sai objective' nữa — pattern này (traffic tăng, lead sập) là dấu hiệu kinh điển của LỖI TRACKING/LEAD FORM hoặc landing page bị đổi/hỏng giữa tháng 6-7. Cross-check marketplace-supply-demand xác nhận pty-sale KHỎE MẠNH (ad_coverage 94%, buyer_coverage 78%, demand/supply balance đều tốt) — loại trừ khả năng thiếu tin đăng. Fix ưu tiên P0: QA kỹ thuật ngay lập tức (lead form, GTM tag, landing page) trước khi đổi objective. Team đã tạo campaign thay thế '_pmax_lead_2026' (bắt đầu chạy từ Jul, CR 7.1% — khỏe hơn hẳn) — nên dồn budget sang đó trong lúc chờ fix campaign cũ."},
-"digital_dau_pty_sell_land_hcm_pmax_lead_2026": {level:"green", text:"Campaign mới, chỉ mới có data tháng 7 (721 DAU, CR 7.1%) — đây là phiên bản thay thế cho campaign adview_2025 đang gặp sự cố. Kết quả ban đầu khả quan, tiếp tục theo dõi khi scale budget lên."},
-"digital_gg_job_vnd_dau_banhang_demandgen": {level:"yellow", text:"ĐIỀU CHỈNH: budget/DAU đã tự giảm mạnh từ đỉnh tháng 3 (68K DAU) xuống chỉ còn 9.6K DAU tháng 7 — có vẻ team đã chủ động cắt giảm rồi. CR cũng đang cải thiện nhẹ (Feb 2.5% → Jun 4.3%, Jul 3.7%). Không cần action khẩn cấp nữa, nhưng vẫn nên xác nhận với Growth/Media buyer đây có phải chủ đích hay ngân sách bị auto-throttle."},
-"digital_fb_pty_let_house_conversion_b2s-surround-hcm": {level:"yellow", text:"ĐIỀU CHỈNH MỨC ĐỘ KHẨN CẤP: campaign này CHỈ MỚI có data tháng 7 — nghĩa là mới launch, đang trong giai đoạn learning phase của thuật toán Meta (thường 1-2 tuần đầu hiệu suất thấp là bình thường). Hạ từ RED xuống YELLOW: theo dõi thêm 2 tuần trước khi kết luận là fail hẳn. Nhưng adview 99.3% + lead 0.2% vẫn là gap bất thường ngay cả cho giai đoạn learning — vẫn nên rà lại landing page/CTA song song."},
-"digital_fb_pty_let_apartment_conversion_b2s-surround-hcm": {level:"yellow", text:"Cùng nhóm B2S-surround, cùng launch tháng 7 — mới, đang learning phase. Theo dõi thêm, không vội kết luận."},
-"digital_fb_pty_let_room_conversion_b2s-surround-hcm": {level:"yellow", text:"CR 2.0% (25/1260) trong tháng đầu launch — nhỉnh hơn 2 campaign B2S còn lại. Theo dõi cùng nhóm, chưa cần action gấp trong giai đoạn learning phase."},
-"digital_gds_elt_5010_gg_pmaxwfeed": {level:"yellow", text:"XÁC NHẬN + BỔ SUNG: xu hướng giảm dần đều khi scale budget — Mar 6.8% → Apr 4.9% → May 3.65% → Jun 3.1% → Jul 2.6%, đúng lúc DAU tăng từ 61K lên 170K (Jun) rồi giảm nhẹ về 133K (Jul). Đây là đánh đổi kinh điển scale-vs-quality của PMax product feed — NHƯNG cross-check marketplace supply-demand cho thấy đây KHÔNG chỉ là vấn đề pha loãng audience: ELT (điện tử) đang thật sự thiếu tin đăng ở nhiều phân khúc (supply_balance 0.68, 24.4% segment ELT bị undersupply — tỷ lệ cao nhất toàn audit). Nghĩa là khi PMax scale traffic lên, một phần traffic đó rơi vào đúng những phân khúc không đủ hàng phù hợp để convert — traffic vào nhưng không có gì để mua. Đây là 2 nguyên nhân cộng dồn: (1) PMax pha loãng chất lượng audience khi scale, VÀ (2) nguồn cung ELT không theo kịp. Khuyến nghị: vẫn tạo test campaign lead-objective để tách bạch nguyên nhân (1), đồng thời làm việc với Category/Sales để recruit thêm seller ELT ở các phân khúc đang thiếu hàng (nguyên nhân 2) — nếu chỉ đổi objective mà không giải quyết thiếu cung thì CR khó cải thiện triệt để."},
-"digital_gds_elt_5010_gg_demandgen_dwl": {level:"green", text:"ĐÍNH CHÍNH: số 1.69% trong báo cáo trước bị lẫn giữa nhiều tháng. Nhìn theo tháng thực tế: CR đang CẢI THIỆN RÕ — Mar 0.8% → Apr 1.1% → May 1.0% → Jun 1.3% → Jul nhảy vọt lên 6.4% (dù volume nhỏ, 49/768). Gỡ cờ đỏ/vàng trước đó — có thể team đã âm thầm điều chỉnh gì đó (targeting/creative) và đang có hiệu quả. Theo dõi thêm 1 tháng để xác nhận xu hướng bền vững trước khi mở rộng budget."}
+"digital_dau_veh_car_all_gg_pmax_adview_vnd": {level:"red",
+  issue:"CR thấp ổn định 4.1–6.4% từ tháng 3 đến nay — không phải sự cố nhất thời, mà là vấn đề cấu trúc kéo dài.",
+  cause:["Cross-check marketplace veh-car: ad_coverage 99.2%, buyer_coverage 91.6%, chỉ 1/1,969 segment có \"conversion issue\" → marketplace hoàn toàn khỏe.","Root cause 100% nằm ở chất lượng audience của campaign (objective \"adview\" đang thu hút traffic nông), không phải do thiếu tin đăng."],
+  fix:["Đổi objective sang \"lead\", giữ nguyên landing/creative.","Ưu tiên cao vì đây là campaign volume lớn nhất veh (75–112K DAU/tháng)."]},
+"digital_dau_veh_car_all_gg_pmax_lead_vnd": {level:"yellow",
+  issue:"CR đang xói mòn dần theo thời gian: Mar 7.5% → Apr 6.7% → May 5.7% → Jun 5.7% → Jul 5.8%.",
+  cause:["Objective \"lead\" vẫn tốt hơn \"adview\" nhưng khoảng cách đang thu hẹp khi budget scale lên (22K→46K DAU).","Nghi vấn: PMax tự động mở rộng audience khi tăng budget, pha loãng chất lượng."],
+  fix:["Theo dõi sát xu hướng.","Cân nhắc cap budget hoặc thắt lại audience signal trước khi tiếp tục scale."]},
+"digital_dau_pty_sell_land_hcm_pmax_adview_2025": {level:"red",
+  issue:"CR 30 ngày chỉ 1.4%, nhưng nhìn theo tháng đây là CÚ RƠI ĐỘT NGỘT trong tháng 7 — Jan-Jun ổn định 4.3–6.8%, riêng Jul rơi thẳng xuống 0.74% trong khi DAU lại TĂNG từ 19K→31K.",
+  cause:["Đây KHÔNG còn là vấn đề \"chọn sai objective\" — pattern traffic tăng, lead sập là dấu hiệu kinh điển của lỗi tracking/lead form hoặc landing page bị đổi/hỏng giữa tháng 6-7.","Cross-check marketplace pty-sale xác nhận khỏe mạnh (ad_coverage 94%, buyer_coverage 78%, demand/supply balance đều tốt) → loại trừ khả năng thiếu tin đăng."],
+  fix:["P0 — QA kỹ thuật ngay lập tức: lead form, GTM tag, landing page.","Team đã tạo campaign thay thế \"_pmax_lead_2026\" (chạy từ Jul, CR 7.1% — khỏe hơn hẳn) — nên dồn budget sang đó trong lúc chờ fix campaign cũ."]},
+"digital_dau_pty_sell_land_hcm_pmax_lead_2026": {level:"green",
+  issue:"Campaign mới, chỉ mới có data tháng 7 (721 DAU, CR 7.1%).",
+  cause:["Đây là phiên bản thay thế cho campaign adview_2025 đang gặp sự cố."],
+  fix:["Kết quả ban đầu khả quan — tiếp tục theo dõi khi scale budget lên."]},
+"digital_gg_job_vnd_dau_banhang_demandgen": {level:"yellow",
+  issue:"Budget/DAU đã tự giảm mạnh từ đỉnh tháng 3 (68K DAU) xuống chỉ còn 9.6K DAU tháng 7.",
+  cause:["Có vẻ team đã chủ động cắt giảm rồi.","CR cũng đang cải thiện nhẹ (Feb 2.5% → Jun 4.3% → Jul 3.7%)."],
+  fix:["Không cần action khẩn cấp.","Xác nhận với Growth/Media buyer đây có phải chủ đích hay ngân sách bị auto-throttle."]},
+"digital_fb_pty_let_house_conversion_b2s-surround-hcm": {level:"yellow",
+  issue:"Chỉ mới có data tháng 7 — campaign mới launch, đang trong learning phase của thuật toán Meta.",
+  cause:["Thường 1-2 tuần đầu hiệu suất thấp là bình thường (hạ mức khẩn cấp từ RED xuống YELLOW).","Nhưng adview 99.3% + lead 0.2% vẫn là gap bất thường ngay cả cho giai đoạn learning."],
+  fix:["Theo dõi thêm 2 tuần trước khi kết luận fail hẳn.","Song song rà lại landing page/CTA."]},
+"digital_fb_pty_let_apartment_conversion_b2s-surround-hcm": {level:"yellow",
+  issue:"Cùng nhóm B2S-surround, cùng launch tháng 7 — mới, đang learning phase.",
+  cause:["Chưa đủ data để kết luận, cùng pattern với campaign nhà nguyên căn."],
+  fix:["Theo dõi thêm, không vội kết luận."]},
+"digital_fb_pty_let_room_conversion_b2s-surround-hcm": {level:"yellow",
+  issue:"CR 2.0% (25/1,260) trong tháng đầu launch — nhỉnh hơn 2 campaign B2S còn lại.",
+  cause:["Cùng nhóm B2S-surround, đang learning phase."],
+  fix:["Theo dõi cùng nhóm, chưa cần action gấp."]},
+"digital_gds_elt_5010_gg_pmaxwfeed": {level:"yellow",
+  issue:"CR giảm dần đều khi scale budget: Mar 6.8% → Apr 4.9% → May 3.65% → Jun 3.1% → Jul 2.6%, đúng lúc DAU tăng từ 61K lên 170K (Jun) rồi giảm nhẹ về 133K (Jul).",
+  cause:["Nguyên nhân 1 — Đánh đổi kinh điển scale-vs-quality của PMax: càng scale, audience càng bị pha loãng.","Nguyên nhân 2 (mới, từ cross-check marketplace) — ELT (điện tử) đang THẬT SỰ thiếu tin đăng ở nhiều phân khúc (supply_balance 0.68, 24.4% segment ELT bị undersupply — cao nhất toàn audit). Traffic tăng lên nhưng một phần rơi vào đúng phân khúc không đủ hàng để convert.","→ Đây là 2 nguyên nhân cộng dồn, không phải chỉ 1."],
+  fix:["Vẫn tạo test campaign lead-objective để tách bạch nguyên nhân 1.","Làm việc với Category/Sales để recruit thêm seller ELT ở phân khúc đang thiếu hàng (nguyên nhân 2).","Lưu ý: nếu chỉ đổi objective mà không giải quyết thiếu cung thì CR khó cải thiện triệt để."]},
+"digital_gds_elt_5010_gg_demandgen_dwl": {level:"green",
+  issue:"Đính chính: số 1.69% ở báo cáo trước bị lẫn giữa nhiều tháng.",
+  cause:["Nhìn theo tháng thực tế, CR đang cải thiện rõ: Mar 0.8% → Apr 1.1% → May 1.0% → Jun 1.3% → Jul nhảy vọt lên 6.4% (dù volume nhỏ, 49/768).","Có thể team đã âm thầm điều chỉnh targeting/creative và đang có hiệu quả."],
+  fix:["Gỡ cờ đỏ/vàng trước đó.","Theo dõi thêm 1 tháng để xác nhận xu hướng bền vững trước khi mở rộng budget."]}
 };
 
 
@@ -520,22 +550,56 @@ function renderMonthlyTrend(v){
   </div>`;
 }
 
-const SUPPLY_DEMAND_NOTES = {
-  pty: { status:'healthy', text: 'Marketplace pty-sale (13/7): ad_coverage 94.4%, buyer_coverage 78.4%, demand_balance 2.21, supply_balance 1.78 — TẤT CẢ đều khỏe mạnh, vượt ngưỡng. 1,147/4,386 segment (26%) có primary_action = "conversion issue" (viewed nhưng ít lead). → Kết luận cấp vertical: marketplace pty-sale KHÔNG thiếu tin đăng — nếu campaign nào trong vertical này có CR thấp, root cause nằm ở phía campaign/tracking, không phải marketplace. Click campaign cụ thể bên dưới để xem chi tiết.' },
-  veh: { status:'watch', text: 'Marketplace veh-car (13/7): ad_coverage 99.2%, buyer_coverage 91.6% (rất khỏe), supply_balance 0.63 (dưới ngưỡng — 272/1,969 = 14% segment thiếu cung nhẹ), nhưng chỉ 1 segment bị "conversion issue". veh-mc: ad_coverage 99.2%, buyer_coverage 91.9%, supply_balance 0.85, conversion issue chỉ 0.2%. → Kết luận cấp vertical: marketplace veh KHÔNG phải nguyên nhân chính cho CR thấp — nếu campaign nào trong vertical này có CR thấp, root cause là targeting/audience quality của campaign. Click campaign cụ thể bên dưới để xem chi tiết.' },
-  gds: { status:'watch', text: 'Marketplace gds = ELT (điện tử) + C2C. Chi tiết root-cause của ELT (thiếu tin đăng) đã gộp vào campaign `digital_gds_elt_5010_gg_pmaxwfeed` ở tab bên dưới — click vào campaign đó để xem đầy đủ. Riêng C2C (chưa gắn được vào 1 campaign cụ thể vì đây là insight ở cấp category, không phải campaign): supply rất dư (supply_balance 2.9) nhưng demand_balance chỉ 0.95, và có tới 2,080/10,790 = 19.3% segment "demand issue" (không có buyer) — cao nhất toàn bộ audit. Đáng để Growth/Marketing xem xét recruit thêm buyer cho C2C thay vì đổ thêm traffic ads.' },
-  jobs: { status:'healthy', text: 'Marketplace jobs (13/7): ad_coverage 97.9%, buyer_coverage 94.5% (cao nhất toàn bộ audit), demand_balance 4.64 (rất mạnh), supply_balance 1.08 (khỏe, đủ cung). Chỉ 25/3,086 segment (0.8%) bị distribution issue, 413 (13.4%) conversion issue — thấp hơn hẳn các vertical khác. → Xác nhận: marketplace jobs là nền tảng vững nhất, đúng như CR benchmark 18% jobs Paid Search — không phải may mắn, mà marketplace thật sự khỏe để support campaign tốt.' }
+/* Raw marketplace health metrics (13/7), per ad_group. Thresholds: ad_coverage>=0.70, buyer_coverage>=0.70, demand_balance>=0.50, supply_balance>=1.0 */
+const SUPPLY_DEMAND_METRICS = {
+  pty: [ { name:'pty-sale', adCoverage:0.944, buyerCoverage:0.784, demandBalance:2.21, supplyBalance:1.78, conversionIssuePct:0.262 } ],
+  veh: [ { name:'veh-car', adCoverage:0.992, buyerCoverage:0.916, demandBalance:3.95, supplyBalance:0.63, conversionIssuePct:0.0005 },
+         { name:'veh-mc',  adCoverage:0.992, buyerCoverage:0.919, demandBalance:2.75, supplyBalance:0.85, conversionIssuePct:0.002 } ],
+  gds: [ { name:'elt (điện tử)', adCoverage:0.980, buyerCoverage:0.893, demandBalance:1.98, supplyBalance:0.68, conversionIssuePct:0.067 },
+         { name:'c2c',           adCoverage:0.951, buyerCoverage:0.941, demandBalance:0.95, supplyBalance:2.90, conversionIssuePct:0.034, demandIssuePct:0.193 } ],
+  jobs: [ { name:'jobs', adCoverage:0.979, buyerCoverage:0.945, demandBalance:4.64, supplyBalance:1.08, conversionIssuePct:0.134 } ]
 };
 
+function metricBadge(val, threshold, higherIsBetter=true){
+  const pass = higherIsBetter ? val >= threshold : val <= threshold;
+  return pass ? '#2ecc71' : '#FF2636';
+}
 
 function renderSupplyDemandCheck(v){
-  const note = SUPPLY_DEMAND_NOTES[v];
-  const badgeColor = note.status==='healthy' ? '#2ecc71' : note.status==='watch' ? '#FFBA00' : '#8b929b';
-  const badgeText = note.status==='healthy' ? '✅ Marketplace khỏe' : note.status==='watch' ? '⚠️ Cần theo dõi' : 'ℹ️ Chưa check';
+  const groups = SUPPLY_DEMAND_METRICS[v] || [];
+  const worstFail = groups.some(g => g.adCoverage<0.70 || g.buyerCoverage<0.70 || g.demandBalance<0.50 || g.supplyBalance<1.0);
+  const badgeColor = worstFail ? '#FFBA00' : '#2ecc71';
+  const badgeText = worstFail ? '⚠️ Có điểm cần theo dõi' : '✅ Marketplace khỏe';
+
+  const cards = groups.map(g=>{
+    const metrics = [
+      {label:'Ad Coverage', val:g.adCoverage, threshold:0.70},
+      {label:'Buyer Coverage', val:g.buyerCoverage, threshold:0.70},
+      {label:'Demand Balance', val:g.demandBalance, threshold:0.50},
+      {label:'Supply Balance', val:g.supplyBalance, threshold:1.0},
+    ];
+    const rows = metrics.map(m=>{
+      const color = metricBadge(m.val, m.threshold);
+      const displayVal = m.val < 10 ? m.val.toFixed(2) : m.val.toFixed(0);
+      const barWidth = Math.min(100, (m.val / (m.threshold*2)) * 100);
+      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
+    }).join('');
+    const extra = [];
+    if (g.conversionIssuePct !== undefined) extra.push(`Conversion issue: <b>${pct(g.conversionIssuePct)}</b> segment`);
+    if (g.demandIssuePct !== undefined) extra.push(`Demand issue: <b>${pct(g.demandIssuePct)}</b> segment`);
+    return `
+    <div class="channel-box">
+      <div class="ch-title"><span>${g.name}</span></div>
+      ${rows}
+      ${extra.length ? `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">${extra.join(' · ')}</div>` : ''}
+    </div>`;
+  }).join('');
+
   return `
   <div class="panel">
     <h2>Cross-check Marketplace Supply-Demand <span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:${badgeColor}22;color:${badgeColor};margin-left:8px;">${badgeText}</span></h2>
-    <div class="desc" style="color:#cfd3d8;">${note.text}</div>
+    <div class="desc">Số liệu ngày 13/7. Ngưỡng khỏe: Ad/Buyer Coverage ≥ 70%, Demand/Supply Balance ≥ 1.0 (0.5 cho demand). Root cause chi tiết của từng campaign nằm trong bảng Campaign Detail bên dưới — click vào campaign để xem.</div>
+    <div class="channel-split">${cards}</div>
   </div>`;
 }
 
@@ -618,7 +682,17 @@ function openDrawer(campaign, v){
   const [name, channel, dau, save, adview, lead, totalLead] = row;
   const cr = lead/dau, adviewRate = adview/dau, saveRate = save/dau, leadPerDau = totalLead/dau;
   const flag = FLAGS[name];
-  const flagHtml = flag ? `<div class="flag ${flag.level}">${flag.level==='red'?'🔴 ROOT CAUSE XÁC NHẬN':flag.level==='yellow'?'⚠️ CẦN THEO DÕI':'✅ OK'}</div><div class="note-box">${flag.text}</div>`
+  function bulletList(items){ return `<ul style="margin:4px 0 0;padding-left:18px;">${items.map(i=>`<li style="margin-bottom:4px;">${i}</li>`).join('')}</ul>`; }
+  const flagHtml = flag ? `
+    <div class="flag ${flag.level}">${flag.level==='red'?'🔴 ROOT CAUSE XÁC NHẬN':flag.level==='yellow'?'⚠️ CẦN THEO DÕI':'✅ OK'}</div>
+    <div class="note-box">
+      <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">🔍 Vấn đề</div>
+      <div style="margin-bottom:12px;">${flag.issue}</div>
+      <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;">🧩 Nguyên nhân</div>
+      ${bulletList(flag.cause)}
+      <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 2px;">🛠️ Gợi ý fix</div>
+      ${bulletList(flag.fix)}
+    </div>`
     : `<div class="note-box" style="border-left-color:#8b929b;color:#8b929b">Chưa có causal deep-dive cho campaign này.</div>`;
   document.getElementById('drawerBody').innerHTML = `
     <span class="drawer-close" id="drawerCloseBtn">&times;</span>
