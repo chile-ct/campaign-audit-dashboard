@@ -146,8 +146,8 @@
           <option value="2026-07">Tháng 7/2026 (MTD, đến 15/7)</option>
         </select>
       </label>
-      <button class="refresh-btn" id="btnRefreshLive">🔄 Refresh Live Data (30d, ~4GB)</button>
-      <div class="last-refreshed" id="lastRefreshed">Snapshot BigQuery — pull lúc build dashboard. Bấm Refresh để lấy số mới nhất.</div>
+      <button class="refresh-btn" id="btnRefreshLive">🔄 Refresh Data</button>
+      <div class="last-refreshed" id="lastRefreshed">Đang tải data mới nhất...</div>
     </div>
   </header>
 
@@ -155,7 +155,7 @@
   <div class="tabs" id="tabs"></div>
   <div id="content"></div>
 
-  <footer>Số liệu snapshot từ BigQuery — 30 ngày gần nhất cho campaign detail, Jan→Jul 2026 cho phần theo tháng/YTD. Cần refresh thì chạy lại query và cập nhật dashboard.</footer>
+  <footer>Số liệu 30 ngày gần nhất tự động cập nhật hàng ngày từ BigQuery (xem data/live-snapshot.json). Phần theo tháng/YTD (Jan→Jul 2026) vẫn là snapshot tĩnh lúc build.</footer>
 </div>
 
 <div class="drawer-overlay" id="drawerOverlay"><div class="drawer" id="drawerBody"></div></div>
@@ -575,6 +575,28 @@ async function refreshLiveData(){
   }
 }
 
+async function loadStaticSnapshot(isManualClick){
+  const statusEl = document.getElementById('lastRefreshed');
+  const btn = document.getElementById('btnRefreshLive');
+  if (isManualClick){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Đang tải data mới nhất...'; }
+  try {
+    const res = await fetch('data/live-snapshot.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    SUMMARY = data.summary;
+    CAMPAIGNS = data.campaigns;
+    Object.keys(data.spend_last30 || {}).forEach(k => { SPEND_LAST30[k] = data.spend_last30[k]; });
+    lastRefreshedAt = new Date(data.generated_at);
+    statusEl.textContent = '🟢 Dữ liệu 30 ngày gần nhất — tự động cập nhật lúc ' + lastRefreshedAt.toLocaleString('vi-VN') + ' (cron hàng ngày).';
+    render();
+  } catch(err){
+    console.error(err);
+    statusEl.textContent = '⚠️ Chưa lấy được data/live-snapshot.json — đang hiện snapshot đóng băng lúc build. (' + (err.message || err) + ')';
+  } finally {
+    if (isManualClick){ btn.disabled = false; btn.innerHTML = '🔄 Refresh Data'; }
+  }
+}
+
 function fmt(n){ return Math.round(n).toLocaleString('en-US'); }
 function pct(n){ return (n*100).toFixed(1) + '%'; }
 function crClass(cr){ if (cr < 0.06) return 'cr-bad'; if (cr < 0.12) return 'cr-mid'; return 'cr-good'; }
@@ -941,9 +963,12 @@ function render(){
 }
 
 document.getElementById('monthFilter').addEventListener('change', (e)=>{ selectedMonth = e.target.value; render(); });
-document.getElementById('btnRefreshLive').addEventListener('click', refreshLiveData);
+document.getElementById('btnRefreshLive').addEventListener('click', ()=>{
+  if (bridgeAvailable()) refreshLiveData(); else loadStaticSnapshot(true);
+});
 
 render();
+loadStaticSnapshot(false);
 </script>
 </body>
 </html>
