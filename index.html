@@ -552,7 +552,8 @@ function renderMonthlyTrend(v){
 
 /* Raw marketplace health metrics (13/7), per ad_group. Thresholds: ad_coverage>=0.70, buyer_coverage>=0.70, demand_balance>=0.50, supply_balance>=1.0 */
 const SUPPLY_DEMAND_METRICS = {
-  pty: [ { name:'pty-sale', adCoverage:0.944, buyerCoverage:0.784, demandBalance:2.21, supplyBalance:1.78, conversionIssuePct:0.262 } ],
+  pty: [ { name:'pty-sale', adCoverage:0.944, buyerCoverage:0.784, demandBalance:2.21, supplyBalance:1.78, conversionIssuePct:0.262 },
+         { name:'pty-rent', adCoverage:0.962, buyerCoverage:0.761, demandBalance:1.40, supplyBalance:1.52, conversionIssuePct:0.302 } ],
   veh: [ { name:'veh-car', adCoverage:0.992, buyerCoverage:0.916, demandBalance:3.95, supplyBalance:0.63, conversionIssuePct:0.0005 },
          { name:'veh-mc',  adCoverage:0.992, buyerCoverage:0.919, demandBalance:2.75, supplyBalance:0.85, conversionIssuePct:0.002 } ],
   gds: [ { name:'elt (điện tử)', adCoverage:0.980, buyerCoverage:0.893, demandBalance:1.98, supplyBalance:0.68, conversionIssuePct:0.067 },
