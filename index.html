@@ -927,13 +927,9 @@ function openDrawer(campaign, v){
   function bulletList(items){ return `<ul style="margin:4px 0 0;padding-left:18px;">${items.map(i=>`<li style="margin-bottom:4px;">${i}</li>`).join('')}</ul>`; }
   const PAGE_TYPE_LABEL = {
     homepage:'Trang chủ', ad_list:'Trang danh sách tin (ad_list)', ad_view:'Trang chi tiết tin (ad_view)',
-    veh_homepage:'Trang chủ Chợ Tốt Xe', job_homepage:'Trang chủ Việc Làm Tốt', pty_homepage:'Trang chủ Nhà Tốt',
+    veh_homepage:'Trang chủ Chợ Tốt Xe', job_homepage:'Trang chủ Việc Làm Tốt',
     seo_content_hub:'SEO Content Hub', chatroom:'Chatroom', app_boarding_region:'Onboarding chọn khu vực',
-    search_no_found_filter:'Trang tìm kiếm không có kết quả (theo bộ lọc)',
-    search_no_found_keyword:'Trang tìm kiếm không có kết quả (theo từ khoá)',
-    ad_not_found:'Trang tin không tồn tại (đã gỡ/hết hạn)', app_boarding_category:'Onboarding chọn ngành hàng',
-    user_ad_dashboard:'Trang quản lý tin đăng của tôi', 'login/sign_up':'Trang đăng nhập / đăng ký',
-    shop_front:'Trang shop / gian hàng', blog_article:'Bài viết blog'
+    search_no_found_filter:'Trang tìm kiếm không có kết quả'
   };
   const landingData = LANDING_PAGES[name];
   const landingHtml = landingData ? `
