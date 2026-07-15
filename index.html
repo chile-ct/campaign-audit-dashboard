@@ -622,26 +622,31 @@ function renderSupplyDemandCheck(v){
 }
 
 
+const EXCLUDED_CAMPAIGNS = new Set(['(none)', '(referral)']);
+
 function getActiveCampaignRows(v){
-  if (selectedMonth === 'last30') return CAMPAIGNS[v] || [];
-  if (selectedMonth === 'ytd'){
+  let rows;
+  if (selectedMonth === 'last30') rows = CAMPAIGNS[v] || [];
+  else if (selectedMonth === 'ytd'){
     const agg = {};
     Object.keys(MONTH_CAMPAIGNS).forEach(ym=>{
-      const rows = (MONTH_CAMPAIGNS[ym][v] || []);
-      rows.forEach(r=>{
+      const monthRows = (MONTH_CAMPAIGNS[ym][v] || []);
+      monthRows.forEach(r=>{
         const [campaign, channel, dau, adview, lead, totalLead] = r;
         const key = campaign + '|' + channel;
         if (!agg[key]) agg[key] = [campaign, channel, 0, 0, 0, 0, 0];
         agg[key][2] += dau; agg[key][4] += adview; agg[key][5] += lead; agg[key][6] += totalLead;
       });
     });
-    return Object.values(agg);
+    rows = Object.values(agg);
+  } else {
+    const monthRows = (MONTH_CAMPAIGNS[selectedMonth] && MONTH_CAMPAIGNS[selectedMonth][v]) || [];
+    rows = monthRows.map(r=>{
+      const [campaign, channel, dau, adview, lead, totalLead] = r;
+      return [campaign, channel, dau, 0, adview, lead, totalLead];
+    });
   }
-  const rows = (MONTH_CAMPAIGNS[selectedMonth] && MONTH_CAMPAIGNS[selectedMonth][v]) || [];
-  return rows.map(r=>{
-    const [campaign, channel, dau, adview, lead, totalLead] = r;
-    return [campaign, channel, dau, 0, adview, lead, totalLead];
-  });
+  return rows.filter(r => !EXCLUDED_CAMPAIGNS.has(r[0]));
 }
 
 function getFilteredSortedRows(v){
