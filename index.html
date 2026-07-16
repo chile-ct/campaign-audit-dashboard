@@ -978,7 +978,7 @@ function renderSupplyDemandCheck(v){
       }
       const displayVal = m.val < 10 ? m.val.toFixed(2) : m.val.toFixed(0);
       const barWidth = Math.min(100, (m.val / (m.threshold*2)) * 100);
-      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap" style="position:relative;overflow:visible;" title="Ngưỡng khỏe: ${m.threshold}"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;opacity:.55;"></div><div style="position:absolute;left:50%;top:-13px;transform:translateX(-50%);font-size:9px;color:#fff;opacity:.8;white-space:nowrap;">${m.threshold}</div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
+      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap" style="position:relative;" title="Ngưỡng khỏe: ${m.threshold}"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;opacity:.55;"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}<span style="color:var(--muted);font-weight:400;font-size:11px;">/${m.threshold}</span></div></div>`;
     }).join('');
     if (!failing.length) explainLines.push(`<div>✅ Cả 4 metric đều đạt ngưỡng khỏe — marketplace không phải nguyên nhân chính, vấn đề (nếu có) nằm ở phía campaign/content.</div>`);
     // Conversion/Demand issue: diagnostic roll-ups (NOT part of the health verdict — no defined
@@ -1048,13 +1048,20 @@ function getActiveCampaignRows(v){
   });
 }
 
+// Naming-convention heuristic — there's no explicit network field, so this infers it from
+// campaign name tags used in practice (_gg_/pmax/dsa/demandgen = Google, _fb_/b2s-surround = Meta).
+function campaignNetwork(name){
+  if (/_gg_|pmax|dsa|demandgen|_google_/i.test(name)) return 'Google';
+  if (/_fb_|b2s.surround/i.test(name)) return 'Facebook';
+  return 'Khác';
+}
 function getFilteredSortedRows(v){
   let rows = getActiveCampaignRows(v).map(r=>{
     const [campaign, channel, dau, save, adview, lead, totalLead] = r;
     const spendInfo = getSpendInfo(campaign);
-    return { campaign, channel, dau, save, adview, lead, totalLead, cr: lead/dau, adviewRate: adview/dau, saveRate: save/dau, leadPerDau: totalLead/dau, cpl: spendInfo ? spendInfo.cpl : -1 };
+    return { campaign, channel, dau, save, adview, lead, totalLead, cr: lead/dau, adviewRate: adview/dau, saveRate: save/dau, leadPerDau: totalLead/dau, cpl: spendInfo ? spendInfo.cpl : -1, network: campaignNetwork(campaign) };
   });
-  if (filterChannel !== 'all') rows = rows.filter(r=>r.channel===filterChannel);
+  if (filterChannel !== 'all') rows = rows.filter(r=>r.network===filterChannel);
   if (filterText.trim()){ const q = filterText.toLowerCase(); rows = rows.filter(r=>r.campaign.toLowerCase().includes(q)); }
   rows.sort((a,b)=>{ let av=a[sortKey], bv=b[sortKey]; if (typeof av==='string') return sortDir*av.localeCompare(bv); return sortDir*(av-bv); });
   return rows;
@@ -1118,9 +1125,10 @@ function renderTable(v){
     <div class="toolbar">
       <input type="text" id="searchBox" placeholder="Tìm campaign..." value="${filterText}">
       <select id="channelFilter">
-        <option value="all" ${filterChannel==='all'?'selected':''}>Tất cả channel</option>
-        <option value="Display" ${filterChannel==='Display'?'selected':''}>Display</option>
-        <option value="Paid Search" ${filterChannel==='Paid Search'?'selected':''}>Paid Search</option>
+        <option value="all" ${filterChannel==='all'?'selected':''}>Tất cả network</option>
+        <option value="Google" ${filterChannel==='Google'?'selected':''}>Google</option>
+        <option value="Facebook" ${filterChannel==='Facebook'?'selected':''}>Facebook</option>
+        <option value="Khác" ${filterChannel==='Khác'?'selected':''}>Khác</option>
       </select>
       <span class="count">${rows.length} campaigns</span>
     </div>
@@ -1140,7 +1148,7 @@ function renderTable(v){
   </div>`;
 }
 
-function computeRecentAnomaly(name, v){
+function computeRecentAnomaly(name, v, currentCr){
   const months = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07"];
   const points = [];
   months.forEach(ym=>{
@@ -1153,7 +1161,17 @@ function computeRecentAnomaly(name, v){
     const cpl = (s && s.spend && s.lead) ? s.spend/s.lead : null;
     points.push({ ym, cr, cpl });
   });
-  if (points.length < 2) return null;
+  const isCurrentlyRed = currentCr != null && crClass(currentCr, v) === 'cr-bad';
+  if (points.length < 2){
+    if (!isCurrentlyRed) return null;
+    // No monthly trend data at all, but CR is red right now (30d) — still owe a root cause.
+    return [
+      `CR to Lead hiện tại (30 ngày) là ${pct(currentCr)} — dưới ngưỡng khỏe của goal, nhưng chưa có đủ data theo tháng để biết đây là mới hay đã kéo dài.`,
+      `🔍 Theo decision-tree <i>paid-ads</i> (CPA too high / low conversion): rà landing page (vấn đề post-click), audience targeting, và creative trước khi kết luận.`,
+      `🛠️ Rà landing page/audience trước; nếu campaign còn nhỏ/mới thì theo dõi thêm 1 tháng để có đủ data trend.`,
+      '<span style="color:var(--muted);font-size:10.5px;">Suy luận dựa trên decision-tree skill <i>paid-ads</i> — chưa xác nhận qua campaign ID thật trên Ads Manager.</span>'
+    ];
+  }
   const last = points[points.length-1], prev = points[points.length-2];
   const notes = [];
   let crChg = null, cplChg = null;
@@ -1166,7 +1184,15 @@ function computeRecentAnomaly(name, v){
     if (Math.abs(cplChg) >= 0.15) notes.push(`CPL ${cplChg>0?'tăng':'giảm'} ${Math.abs(cplChg*100).toFixed(0)}% so tháng trước (${fmtVND(prev.cpl)} → ${fmtVND(last.cpl)}).`);
   }
   if (!notes.length){
-    notes.push('Không có biến động bất thường gần đây — CPL/CR ổn định qua các tháng gần nhất.');
+    if (!isCurrentlyRed){
+      notes.push('Không có biến động bất thường gần đây — CPL/CR ổn định qua các tháng gần nhất.');
+      return notes;
+    }
+    // CR is red but stable — not a new drop, a chronic underperformance. Still owes a root cause.
+    notes.push(`CR to Lead đang ổn định thấp dưới ngưỡng goal nhiều tháng liền (hiện ${pct(currentCr)}) — không phải suy giảm mới, mà là vấn đề tồn tại từ đầu.`);
+    notes.push('🔍 Theo <i>paid-ads</i>: CR thấp ổn định (không phải mới giảm) thường là do audience/objective/landing page sai ngay từ lúc setup, chứ không phải cạnh tranh đấu giá tăng dần.');
+    notes.push('🛠️ Rà lại objective + audience targeting của campaign trên Ads Manager, và landing page có đúng với ý định campaign không — ưu tiên hơn việc chỉ theo dõi thêm.');
+    notes.push('<span style="color:var(--muted);font-size:10.5px;">Suy luận dựa trên decision-tree skill <i>paid-ads</i> — chưa xác nhận qua campaign ID thật trên Ads Manager.</span>');
     return notes;
   }
   // Root-cause + fix suggestion follows the "paid-ads" skill's decision tree verbatim
@@ -1192,6 +1218,13 @@ function computeRecentAnomaly(name, v){
     notes.push('✅ Cả CR lẫn CPL đều đang cải thiện — xu hướng tích cực, có thể cân nhắc tăng nhẹ budget để tận dụng (theo paid-ads: scale 20-30% một lần, chờ 3-5 ngày cho thuật toán học trước khi tăng tiếp).');
   } else if (crGood && cplBad){
     notes.push('🔍 CR cải thiện nhưng CPL cũng tăng — có thể lead chất lượng hơn (đắt hơn hợp lý) hoặc chi phí đấu giá tăng song song không liên quan đến chất lượng. Cần xem thêm chất lượng lead thực tế trước khi kết luận tốt hay xấu.');
+  } else if (isCurrentlyRed){
+    // Swing detected (e.g. CPL-only improving, or CR-only improving) but none of the bad/bad,
+    // bad/ok, ok/bad, good/good combos matched — campaign is still red right now, so it still
+    // owes a root cause instead of being left with just the raw stat.
+    notes.push(`Dù có cải thiện ở trên, CR to Lead hiện tại (${pct(currentCr)}) vẫn dưới ngưỡng khỏe của goal.`);
+    notes.push('🔍 Theo <i>paid-ads</i>: CR vẫn thấp dù có tín hiệu cải thiện thường là do audience/objective/landing page chưa đúng ngay từ đầu — cải thiện một phần chưa đủ để đạt goal.');
+    notes.push('🛠️ Rà lại objective + audience targeting và landing page trước khi coi cải thiện này là đủ.');
   }
   notes.push('<span style="color:var(--muted);font-size:10.5px;">Suy luận dựa trên decision-tree skill <i>paid-ads</i> — chưa xác nhận qua campaign ID thật trên Ads Manager.</span>');
   return notes;
@@ -1228,7 +1261,7 @@ function openDrawer(campaign, v){
     </div>`
     : `<div class="panel" style="padding:14px 16px;margin-bottom:16px;color:#8b929b;font-size:12.5px;">📍 Chưa có data landing page cho campaign này trong 30 ngày gần nhất (có thể do volume quá nhỏ hoặc campaign mới).</div>`;
 
-  const anomalyNotes = computeRecentAnomaly(name, v);
+  const anomalyNotes = computeRecentAnomaly(name, v, cr);
   const flagHtml = flag ? `
     <div class="flag ${flag.level}">${flag.level==='red'?'🔴 ROOT CAUSE XÁC NHẬN':flag.level==='yellow'?'⚠️ CẦN THEO DÕI':'✅ OK'}</div>
     <div class="note-box">
