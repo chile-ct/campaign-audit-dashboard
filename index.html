@@ -1135,6 +1135,7 @@ function renderTable(v){
   return `
   <div class="panel">
     <h2>Campaign Detail — ${VERTICALS[v].name}</h2>
+    ${renderChannelSplit(v)}
     <div class="toolbar">
       <input type="text" id="searchBox" placeholder="Tìm campaign..." value="${filterText}">
       <select id="channelFilter">
@@ -1341,7 +1342,7 @@ function render(){
   buildTabs();
   const v = currentVertical;
   const monthNote = `<div style="margin:-6px 0 14px;color:var(--muted);font-size:11.5px;font-family:var(--mono);">📅 Đang xem: <b style="color:var(--yellow)">${monthLabel()}</b> — bảng Campaign Detail bên dưới luôn cố định theo snapshot 30 ngày gần nhất (dữ liệu campaign-level theo tháng chỉ có cho các campaign đã root-cause deep-dive).</div>`;
-  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderChannelSplit(v) + renderTable(v);
+  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderTable(v);
   document.querySelectorAll('thead th').forEach(th=>{
     th.addEventListener('click', ()=>{ const key=th.dataset.key; if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=1; } render(); });
   });
