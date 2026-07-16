@@ -749,6 +749,41 @@ function renderMonthlyTrend(v){
   </div>`;
 }
 
+function computeMonthlyCPL(v){
+  const months = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07"];
+  return months.map(ym=>{
+    const campaigns = (MONTH_CAMPAIGNS[ym] && MONTH_CAMPAIGNS[ym][v]) || [];
+    let spend = 0, lead = 0;
+    campaigns.forEach(r=>{
+      const name = r[0];
+      if (EXCLUDED_CAMPAIGNS.has(name) || EXCLUDED_NAME_PATTERN.test(name)) return;
+      const s = SPEND_BY_MONTH[ym] && SPEND_BY_MONTH[ym][name];
+      if (s && s.spend && s.lead) { spend += s.spend; lead += s.lead; }
+    });
+    return { ym, cpl: lead > 0 ? spend / lead : null };
+  });
+}
+
+function renderMonthlyCPLTrend(v){
+  const rows = computeMonthlyCPL(v);
+  const valid = rows.filter(r=>r.cpl != null).map(r=>r.cpl);
+  const maxCpl = Math.max(...valid, 1);
+  const bars = rows.map(r=>{
+    const h = r.cpl != null ? Math.max(4, (r.cpl/maxCpl)*60) : 0;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>
+      <div style="width:70%;height:${h}px;background:${r.cpl!=null?'#2561CF':'transparent'};border-radius:3px 3px 0 0;"></div>
+      <div style="font-family:var(--mono);font-size:9.5px;color:var(--muted)">${r.ym.slice(5)}</div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="panel">
+    <h2>Xu hướng Cost per Lead theo tháng — ${VERTICALS[v].name}</h2>
+    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search, loại (organic)/(none)/(referral)/*install* — nguồn: kiet_digital_campaign_daily.</div>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:100px;padding:0 4px;">${bars}</div>
+  </div>`;
+}
+
 /* Raw marketplace health metrics (13/7), per ad_group. Thresholds: ad_coverage>=0.70, buyer_coverage>=0.70, demand_balance>=0.50, supply_balance>=1.0 */
 const SUPPLY_DEMAND_METRICS = {
   pty: [ { name:'pty-sale', adCoverage:0.944, buyerCoverage:0.784, demandBalance:2.21, supplyBalance:1.78, conversionIssuePct:0.262 },
@@ -936,9 +971,9 @@ function openDrawer(campaign, v){
     <div class="panel" style="padding:14px 16px;margin-bottom:16px;">
       <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;">📍 Landing Page / Screen (30 ngày gần nhất)</div>
       ${landingData.map(l=>`<div style="padding:5px 0;border-bottom:1px solid #1c2025;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.url ? `<a href="${l.url}" target="_blank" style="color:#6ab0ff;text-decoration:none;">${l.url.length>55?l.url.slice(0,55)+'…':l.url}</a>` : l.page_type ? `${PAGE_TYPE_LABEL[l.page_type] || l.page_type} <span style="color:var(--muted);">(chỉ biết loại trang, không có URL cụ thể)</span>` : `<span style="color:var(--muted);">Không ghi nhận landing screen (session không có page_type/category trong data — có thể bounce ngay hoặc lỗi tracking)</span>`}</span>
-          <span style="color:var(--muted);font-family:var(--mono);flex-shrink:0;">${fmt(l.sessions)} sessions</span>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <span style="word-break:break-all;">${l.url ? `<a href="${l.url}" target="_blank" style="color:#6ab0ff;text-decoration:none;">${l.url}</a>` : l.page_type ? `${PAGE_TYPE_LABEL[l.page_type] || l.page_type} <span style="color:var(--muted);">(chỉ biết loại trang, không có URL cụ thể)</span>` : `<span style="color:var(--muted);">Không ghi nhận landing screen (session không có page_type/category trong data — có thể bounce ngay hoặc lỗi tracking)</span>`}</span>
+          <span style="color:var(--muted);font-family:var(--mono);flex-shrink:0;white-space:nowrap;">${fmt(l.sessions)} sessions</span>
         </div>
         <div style="margin-top:2px;font-size:11px;color:var(--muted);">${l.platform_label || l.platform || ''}${l.category ? ' · category: ' + l.category : ''}</div>
       </div>`).join('')}
@@ -983,7 +1018,7 @@ function render(){
   buildTabs();
   const v = currentVertical;
   const monthNote = `<div style="margin:-6px 0 14px;color:var(--muted);font-size:11.5px;font-family:var(--mono);">📅 Đang xem: <b style="color:var(--yellow)">${monthLabel()}</b> — bảng Campaign Detail bên dưới luôn cố định theo snapshot 30 ngày gần nhất (dữ liệu campaign-level theo tháng chỉ có cho các campaign đã root-cause deep-dive).</div>`;
-  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderChannelSplit(v) + renderMonthlyTrend(v) + renderSupplyDemandCheck(v) + renderTable(v);
+  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderChannelSplit(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderTable(v);
   document.querySelectorAll('thead th').forEach(th=>{
     th.addEventListener('click', ()=>{ const key=th.dataset.key; if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=1; } render(); });
   });
