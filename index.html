@@ -978,7 +978,7 @@ function renderSupplyDemandCheck(v){
       }
       const displayVal = m.val < 10 ? m.val.toFixed(2) : m.val.toFixed(0);
       const barWidth = Math.min(100, (m.val / (m.threshold*2)) * 100);
-      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap" style="position:relative;" title="Ngưỡng khỏe: ${m.threshold}"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;opacity:.55;"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}<span style="color:var(--muted);font-weight:400;font-size:11px;">/${m.threshold}</span></div></div>`;
+      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}<span style="color:var(--muted);font-weight:400;font-size:11px;">/${m.threshold}</span></div></div>`;
     }).join('');
     if (!failing.length) explainLines.push(`<div>✅ Cả 4 metric đều đạt ngưỡng khỏe — marketplace không phải nguyên nhân chính, vấn đề (nếu có) nằm ở phía campaign/content.</div>`);
     // Conversion/Demand issue: diagnostic roll-ups (NOT part of the health verdict — no defined
@@ -1003,10 +1003,11 @@ function renderSupplyDemandCheck(v){
   return `
   <div class="panel">
     <h2>Cross-check Marketplace Supply-Demand <span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:${badgeColor}22;color:${badgeColor};margin-left:8px;">${badgeText}</span></h2>
-    <div class="desc">
-      <span style="display:inline-block;width:10px;height:2px;background:#fff;opacity:.55;vertical-align:middle;"></span> = vạch ngưỡng khỏe.
-      Conversion/Demand issue: action là Category/Sales/Product cải thiện chất lượng tin/matching, <b>không phải giảm traffic marketing</b>.
-    </div>
+    <ul class="desc" style="margin:6px 0 0;padding-left:18px;">
+      <li><b>Conversion issue X%</b>: % phân khúc có buyer xem/tương tác nhưng ít ra deal — vấn đề chất lượng tin/matching trong phân khúc đó, <b>không phải thiếu nguồn cung</b>.</li>
+      <li><b>Demand issue X%</b>: % phân khúc có tin đăng nhưng thiếu buyer quan tâm.</li>
+      <li>Cả 2 chỉ mang tính chẩn đoán, không tính vào badge khỏe/yếu ở trên. Action khi cao là Category/Sales/Product cải thiện chất lượng tin/matching, <b>không phải giảm traffic marketing</b>.</li>
+    </ul>
     <div class="channel-split">${cards}</div>
   </div>`;
 }
@@ -1053,6 +1054,7 @@ function getActiveCampaignRows(v){
 function campaignNetwork(name){
   if (/_gg_|pmax|dsa|demandgen|_google_/i.test(name)) return 'Google';
   if (/_fb_|b2s.surround/i.test(name)) return 'Facebook';
+  if (/search/i.test(name)) return 'Google';
   return 'Khác';
 }
 function getFilteredSortedRows(v){
@@ -1216,6 +1218,11 @@ function computeRecentAnomaly(name, v, currentCr){
     notes.push('🛠️ Rà landing page và audience targeting trước khi tiếp tục scale budget.');
   } else if (crGood && cplGood){
     notes.push('✅ Cả CR lẫn CPL đều đang cải thiện — xu hướng tích cực, có thể cân nhắc tăng nhẹ budget để tận dụng (theo paid-ads: scale 20-30% một lần, chờ 3-5 ngày cho thuật toán học trước khi tăng tiếp).');
+    if (isCurrentlyRed){
+      notes.push(`Dù đang cải thiện, CR to Lead hiện tại (${pct(currentCr)}) vẫn dưới ngưỡng khỏe của goal.`);
+      notes.push('🔍 Theo <i>paid-ads</i>: CR vẫn thấp dù có tín hiệu cải thiện thường là do audience/objective/landing page chưa đúng ngay từ đầu — cải thiện một phần chưa đủ để đạt goal.');
+      notes.push('🛠️ Tiếp tục đà cải thiện hiện tại, đồng thời rà thêm objective + audience targeting + landing page để đạt goal nhanh hơn.');
+    }
   } else if (crGood && cplBad){
     notes.push('🔍 CR cải thiện nhưng CPL cũng tăng — có thể lead chất lượng hơn (đắt hơn hợp lý) hoặc chi phí đấu giá tăng song song không liên quan đến chất lượng. Cần xem thêm chất lượng lead thực tế trước khi kết luận tốt hay xấu.');
   } else if (isCurrentlyRed){
