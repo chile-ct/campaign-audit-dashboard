@@ -770,7 +770,7 @@ function renderCards(v){
   const gapTxt = cplGapPct == null ? 'chưa đủ data spend' : `${cplGapPct>=0?'+':''}${(cplGapPct*100).toFixed(1)}% vs goal`;
   return `
   <div class="grid-cards">
-    <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub">Paid Search + Display</div><div class="sub" style="color:var(--muted);margin-top:2px;">Ref: CP DAU ${fmtVND(GOALS[v].cp_dau)} · CP MAU ${fmtVND(GOALS[v].cp_mau)} (TB năm)</div></div>
+    <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub" style="color:var(--muted);">Ref: CP DAU ${fmtVND(GOALS[v].cp_dau)} · CP MAU ${fmtVND(GOALS[v].cp_mau)} (TB năm)</div></div>
     <div class="card"><div class="label">DAU w/ Save</div><div class="value">${fmt(c.save)}</div><div class="sub">${pct(c.save/c.dau)} of DAU</div></div>
     <div class="card"><div class="label">DAU w/ Adview</div><div class="value">${fmt(c.adview)}</div><div class="sub">${pct(c.adview/c.dau)} of DAU</div></div>
     <div class="card"><div class="label">DAU w/ Lead</div><div class="value">${fmt(c.lead)}</div><div class="sub">${pct(c.cr)} CR DAU→Lead</div><div class="sub" style="color:var(--muted);margin-top:2px;">Ref: CP DwL ${fmtVND(GOALS[v].cp_dwl)} · CP MwL ${fmtVND(GOALS[v].cp_mwl)} (TB năm)</div></div>
@@ -868,7 +868,7 @@ function renderMonthlyTrend(v){
   return `
   <div class="panel">
     <h2>Xu hướng CR DAU→Lead theo tháng — ${VERTICALS[v].name}</h2>
-    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search.
+    <div class="desc">
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế &nbsp;
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target tháng đó.
     </div>
@@ -921,7 +921,7 @@ function renderMonthlyCPLTrend(v){
   return `
   <div class="panel">
     <h2>Xu hướng Cost per Lead theo tháng — ${VERTICALS[v].name}</h2>
-    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search, loại (organic)/(none)/(referral)/*install* — nguồn: kiet_digital_campaign_daily.
+    <div class="desc">
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế &nbsp;
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target tháng đó.
     </div>
@@ -978,7 +978,7 @@ function renderSupplyDemandCheck(v){
       }
       const displayVal = m.val < 10 ? m.val.toFixed(2) : m.val.toFixed(0);
       const barWidth = Math.min(100, (m.val / (m.threshold*2)) * 100);
-      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
+      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap" style="position:relative;" title="Ngưỡng khỏe: ${m.threshold}"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;opacity:.55;"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
     }).join('');
     if (!failing.length) explainLines.push(`<div>✅ Cả 4 metric đều đạt ngưỡng khỏe — marketplace không phải nguyên nhân chính, vấn đề (nếu có) nằm ở phía campaign/content.</div>`);
     // Conversion/Demand issue: diagnostic roll-ups (NOT part of the health verdict — no defined
@@ -1003,7 +1003,10 @@ function renderSupplyDemandCheck(v){
   return `
   <div class="panel">
     <h2>Cross-check Marketplace Supply-Demand <span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:${badgeColor}22;color:${badgeColor};margin-left:8px;">${badgeText}</span></h2>
-    <div class="desc">Số liệu ngày 13/7. Ngưỡng khỏe: Ad/Buyer Coverage ≥ 70%, Demand Balance ≥ 0.5, Supply Balance ≥ 1.0. Conversion/Demand issue % là chẩn đoán bổ sung (không có ngưỡng khỏe/yếu, không tính vào badge trên) — action khi issue này cao là Category/Sales/Product cải thiện chất lượng tin/matching, <b>không phải giảm traffic marketing vào phân khúc đó</b>.</div>
+    <div class="desc">
+      <span style="display:inline-block;width:10px;height:2px;background:#fff;opacity:.55;vertical-align:middle;"></span> = vạch ngưỡng khỏe.
+      Conversion/Demand issue: action là Category/Sales/Product cải thiện chất lượng tin/matching, <b>không phải giảm traffic marketing</b>.
+    </div>
     <div class="channel-split">${cards}</div>
   </div>`;
 }
@@ -1049,6 +1052,21 @@ function getFilteredSortedRows(v){
   return rows;
 }
 
+// Spend/CPL is NOT split per vertical (kiet_digital_campaign_daily keys by campaign only).
+// A campaign appearing under a vertical where it has only a small minority of its DAU
+// (cross-vertical touch, e.g. a veh campaign showing up under pty) still shows its FULL
+// campaign spend divided by that vertical's tiny lead count — CPL is inflated/meaningless
+// there. This computes that vertical's share of the campaign's total last-30d DAU so the
+// UI can flag it.
+function campaignVerticalShare(campaign, v){
+  let totalDau = 0, thisDau = 0;
+  Object.keys(VERTICALS).forEach(vv=>{
+    const rows = CAMPAIGNS[vv] || [];
+    const row = rows.find(r=>r[0]===campaign);
+    if (row){ totalDau += row[2]; if (vv===v) thisDau = row[2]; }
+  });
+  return totalDau > 0 ? thisDau/totalDau : null;
+}
 function getSpendInfo(campaign){
   let s = null;
   if (selectedMonth === 'last30'){
@@ -1076,7 +1094,9 @@ function renderTable(v){
   const tbody = rows.map(r=>{
     const flag = FLAGS[r.campaign];
     const flagDot = flag ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;background:${flag.level==='red'?'#FF2636':flag.level==='yellow'?'#FFBA00':'#2ecc71'}"></span>` : '';
-    const cplCell = `<td class="cr-cell ${cplClass(r.cpl, v)}">${r.cpl >= 0 ? fmtVND(r.cpl) : '—'}</td>`;
+    const vShare = campaignVerticalShare(r.campaign, v);
+    const cplWarn = (r.cpl >= 0 && vShare != null && vShare < 0.3) ? ` <span title="Campaign này chỉ ${pct(vShare)} DAU thuộc ${VERTICALS[v].name} — spend không chia theo vertical nên CPL này bị thổi phồng, không đại diện thật.">⚠️</span>` : '';
+    const cplCell = `<td class="cr-cell ${cplClass(r.cpl, v)}">${r.cpl >= 0 ? fmtVND(r.cpl) : '—'}${cplWarn}</td>`;
     return `<tr data-campaign="${encodeURIComponent(r.campaign)}">
       <td class="campaign-name">${flagDot}${r.campaign}</td>
       <td><span class="ch-pill" style="background:${channelColor(r.channel)}22;color:${channelColor(r.channel)}">${r.channel}</span></td>
@@ -1087,7 +1107,6 @@ function renderTable(v){
   return `
   <div class="panel">
     <h2>Campaign Detail — ${VERTICALS[v].name}</h2>
-    <div class="desc">Lọc DAU ≥ 100. Click dòng để xem chi tiết & root-cause flag (nếu có). Click header để sort. CPL (Cost per Lead) tính theo đúng khung thời gian đang chọn ở trên (📅 ${monthLabel()}) — nguồn: bảng kiet_digital_campaign_daily. Dấu "—" nghĩa là campaign đó không có data spend trong khung thời gian này (VD: chưa chạy trong tháng đó, hoặc là campaign appinstall nội bộ không track cost).</div>
     <div class="toolbar">
       <input type="text" id="searchBox" placeholder="Tìm campaign..." value="${filterText}">
       <select id="channelFilter">
@@ -1100,11 +1119,16 @@ function renderTable(v){
     <div class="table-scroll"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
     <div class="legend">
       <span><span class="sw" style="background:#FF2636"></span> CR &lt; 6% (nguy hiểm)</span>
-
       <span><span class="sw" style="background:#FFBA00"></span> CR 6–12% (theo dõi)</span>
       <span><span class="sw" style="background:#2ecc71"></span> CR &gt; 12% (tốt)</span>
       <span>● = có root-cause flag (click để xem)</span>
     </div>
+    <ul class="desc" style="margin:12px 0 0;padding-left:18px;">
+      <li>Lọc DAU ≥ 100.</li>
+      <li>Click dòng để xem chi tiết &amp; root-cause flag (nếu có). Click header để sort.</li>
+      <li>CPL tính theo đúng khung thời gian đang chọn ở trên (📅 ${monthLabel()}) — nguồn: bảng kiet_digital_campaign_daily.</li>
+      <li>Dấu "—" ở cột CPL nghĩa là campaign đó không có data spend trong khung thời gian này (VD: chưa chạy trong tháng đó, hoặc là campaign appinstall nội bộ không track cost).</li>
+    </ul>
   </div>`;
 }
 
@@ -1124,15 +1148,39 @@ function computeRecentAnomaly(name, v){
   if (points.length < 2) return null;
   const last = points[points.length-1], prev = points[points.length-2];
   const notes = [];
+  let crChg = null, cplChg = null;
   if (last.cr != null && prev.cr != null && prev.cr > 0){
-    const chg = (last.cr - prev.cr) / prev.cr;
-    if (Math.abs(chg) >= 0.15) notes.push(`CR to Lead ${chg>0?'tăng':'giảm'} ${Math.abs(chg*100).toFixed(0)}% so tháng trước (${pct(prev.cr)} → ${pct(last.cr)}).`);
+    crChg = (last.cr - prev.cr) / prev.cr;
+    if (Math.abs(crChg) >= 0.15) notes.push(`CR to Lead ${crChg>0?'tăng':'giảm'} ${Math.abs(crChg*100).toFixed(0)}% so tháng trước (${pct(prev.cr)} → ${pct(last.cr)}).`);
   }
   if (last.cpl != null && prev.cpl != null && prev.cpl > 0){
-    const chg = (last.cpl - prev.cpl) / prev.cpl;
-    if (Math.abs(chg) >= 0.15) notes.push(`CPL ${chg>0?'tăng':'giảm'} ${Math.abs(chg*100).toFixed(0)}% so tháng trước (${fmtVND(prev.cpl)} → ${fmtVND(last.cpl)}).`);
+    cplChg = (last.cpl - prev.cpl) / prev.cpl;
+    if (Math.abs(cplChg) >= 0.15) notes.push(`CPL ${cplChg>0?'tăng':'giảm'} ${Math.abs(cplChg*100).toFixed(0)}% so tháng trước (${fmtVND(prev.cpl)} → ${fmtVND(last.cpl)}).`);
   }
-  if (!notes.length) notes.push('Không có biến động bất thường gần đây — CPL/CR ổn định qua các tháng gần nhất.');
+  if (!notes.length){
+    notes.push('Không có biến động bất thường gần đây — CPL/CR ổn định qua các tháng gần nhất.');
+    return notes;
+  }
+  // Heuristic root-cause + fix suggestion for whichever combination of moves happened —
+  // this is a pattern-match, not a confirmed diagnosis, so phrase it as "khả năng"/"cân nhắc".
+  const crBad = crChg != null && crChg <= -0.15;
+  const crGood = crChg != null && crChg >= 0.15;
+  const cplBad = cplChg != null && cplChg >= 0.15;
+  const cplGood = cplChg != null && cplChg <= -0.15;
+  if (crBad && cplBad){
+    notes.push('🔍 <b>Khả năng:</b> CR giảm + CPL tăng cùng lúc — dấu hiệu kinh điển của audience bị pha loãng khi scale budget, hoặc cạnh tranh đấu giá tăng.');
+    notes.push('🛠️ <b>Gợi ý:</b> cân nhắc thắt lại audience/targeting hoặc cap budget về mức tháng trước; theo dõi thêm 2-4 tuần trước khi quyết định tiếp.');
+  } else if (cplBad && !crBad){
+    notes.push('🔍 <b>Khả năng:</b> CPL tăng nhưng CR không đổi nhiều — nhiều khả năng do giá thầu (CPC/CPM) tăng vì cạnh tranh, hoặc creative bắt đầu mệt (giảm CTR).');
+    notes.push('🛠️ <b>Gợi ý:</b> kiểm tra xu hướng CPC/CPM trên nền tảng quảng cáo; cân nhắc làm mới creative nếu đã chạy lâu không đổi.');
+  } else if (crBad && !cplBad){
+    notes.push('🔍 <b>Khả năng:</b> CR giảm dù CPL không tăng nhiều — có thể do landing page/audience lệch, hoặc nhu cầu thị trường giảm.');
+    notes.push('🛠️ <b>Gợi ý:</b> rà lại landing page và audience targeting trước khi tiếp tục scale.');
+  } else if (crGood && cplGood){
+    notes.push('✅ Cả CR lẫn CPL đều đang cải thiện — xu hướng tích cực, có thể cân nhắc tăng nhẹ budget để tận dụng.');
+  } else if (crGood && cplBad){
+    notes.push('🔍 <b>Khả năng:</b> CR cải thiện nhưng CPL cũng tăng — có thể do lead chất lượng hơn (đắt hơn) hoặc chi phí đấu giá tăng song song. Cần xem thêm quality của lead trước khi kết luận là tốt hay xấu.');
+  }
   return notes;
 }
 function openDrawer(campaign, v){
@@ -1196,10 +1244,15 @@ function openDrawer(campaign, v){
       ${goalLine(cplGapVsGoal, true, 'CPL', spendInfo?fmtVND(spendInfo.cpl):'—', fmtVND(vGoal.cpl))}
       ${goalLine(crGapVsGoal, false, 'CR to Lead', pct(cr), pct(vGoal.cr))}
     </div>`;
+  const vShareDrawer = campaignVerticalShare(name, v);
+  const crossVerticalWarnHtml = (vShareDrawer != null && vShareDrawer < 0.3) ? `
+    <div class="note-box" style="border-left-color:#FFBA00;">⚠️ Campaign này chỉ <b>${pct(vShareDrawer)}</b> DAU (30 ngày) thuộc ${VERTICALS[v].name} — phần lớn traffic thuộc vertical khác. Spend/CPL bên dưới KHÔNG chia theo vertical (nguồn kiet_digital_campaign_daily chỉ key theo campaign), nên là tổng spend của <b>toàn bộ campaign</b> chia cho lead ít ỏi ở đây — con số CPL bị thổi phồng, không đại diện chi phí thật cho ${VERTICALS[v].name}.</div>`
+    : '';
   document.getElementById('drawerBody').innerHTML = `
     <span class="drawer-close" id="drawerCloseBtn">&times;</span>
     <h3>${name}</h3>
     <div class="drawer-sub">${VERTICALS[v].name} · ${channel} · ${monthLabel()}</div>
+    ${crossVerticalWarnHtml}
     ${flagHtml}
     ${landingHtml}
     <div class="metric-grid">
