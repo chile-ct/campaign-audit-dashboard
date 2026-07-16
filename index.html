@@ -1161,26 +1161,31 @@ function computeRecentAnomaly(name, v){
     notes.push('Không có biến động bất thường gần đây — CPL/CR ổn định qua các tháng gần nhất.');
     return notes;
   }
-  // Heuristic root-cause + fix suggestion for whichever combination of moves happened —
-  // this is a pattern-match, not a confirmed diagnosis, so phrase it as "khả năng"/"cân nhắc".
+  // Root-cause + fix suggestion follows the "paid-ads" skill's decision tree verbatim
+  // (CPA too high → check landing page / tighten audience / test creative / improve
+  // relevance-quality score / adjust bid; CTR low → creative / audience mismatch / fatigue).
+  // This is a diagnostic framework match against the data pattern, not a confirmed root
+  // cause — actual objective/audience/creative would need the real campaign ID on
+  // Meta/Google Ads Manager to verify.
   const crBad = crChg != null && crChg <= -0.15;
   const crGood = crChg != null && crChg >= 0.15;
   const cplBad = cplChg != null && cplChg >= 0.15;
   const cplGood = cplChg != null && cplChg <= -0.15;
   if (crBad && cplBad){
-    notes.push('🔍 <b>Khả năng:</b> CR giảm + CPL tăng cùng lúc — dấu hiệu kinh điển của audience bị pha loãng khi scale budget, hoặc cạnh tranh đấu giá tăng.');
-    notes.push('🛠️ <b>Gợi ý:</b> cân nhắc thắt lại audience/targeting hoặc cap budget về mức tháng trước; theo dõi thêm 2-4 tuần trước khi quyết định tiếp.');
+    notes.push('🔍 CR giảm + CPL tăng cùng lúc = CPA cao theo cả 2 hướng. Theo decision-tree <i>paid-ads</i> (CPA too high), rà theo thứ tự: <b>(1)</b> landing page — vấn đề có nằm ở post-click không <b>(2)</b> thắt lại audience targeting <b>(3)</b> test creative/angle mới <b>(4)</b> cải thiện ad relevance/quality score <b>(5)</b> điều chỉnh bid strategy.');
+    notes.push('🛠️ Trong lúc rà, cân nhắc cap budget về mức tháng trước để chặn lỗ thêm; theo dõi 2-4 tuần trước khi quyết định tiếp.');
   } else if (cplBad && !crBad){
-    notes.push('🔍 <b>Khả năng:</b> CPL tăng nhưng CR không đổi nhiều — nhiều khả năng do giá thầu (CPC/CPM) tăng vì cạnh tranh, hoặc creative bắt đầu mệt (giảm CTR).');
-    notes.push('🛠️ <b>Gợi ý:</b> kiểm tra xu hướng CPC/CPM trên nền tảng quảng cáo; cân nhắc làm mới creative nếu đã chạy lâu không đổi.');
+    notes.push('🔍 CPL tăng nhưng CR không đổi nhiều → vấn đề nằm ở chi phí, không phải conversion. Theo <i>paid-ads</i>: nhiều khả năng CPC/CPM tăng do cạnh tranh đấu giá, hoặc creative bắt đầu fatigue (CTR giảm dần theo thời gian chạy).');
+    notes.push('🛠️ Kiểm tra xu hướng CPC/CPM trên nền tảng quảng cáo; refresh creative nếu đã chạy lâu không đổi.');
   } else if (crBad && !cplBad){
-    notes.push('🔍 <b>Khả năng:</b> CR giảm dù CPL không tăng nhiều — có thể do landing page/audience lệch, hoặc nhu cầu thị trường giảm.');
-    notes.push('🛠️ <b>Gợi ý:</b> rà lại landing page và audience targeting trước khi tiếp tục scale.');
+    notes.push('🔍 CR giảm dù CPL chưa tăng nhiều → theo <i>paid-ads</i>, dấu hiệu vấn đề post-click (landing page) hoặc audience mismatch, chưa phải vấn đề chi phí đấu giá.');
+    notes.push('🛠️ Rà landing page và audience targeting trước khi tiếp tục scale budget.');
   } else if (crGood && cplGood){
-    notes.push('✅ Cả CR lẫn CPL đều đang cải thiện — xu hướng tích cực, có thể cân nhắc tăng nhẹ budget để tận dụng.');
+    notes.push('✅ Cả CR lẫn CPL đều đang cải thiện — xu hướng tích cực, có thể cân nhắc tăng nhẹ budget để tận dụng (theo paid-ads: scale 20-30% một lần, chờ 3-5 ngày cho thuật toán học trước khi tăng tiếp).');
   } else if (crGood && cplBad){
-    notes.push('🔍 <b>Khả năng:</b> CR cải thiện nhưng CPL cũng tăng — có thể do lead chất lượng hơn (đắt hơn) hoặc chi phí đấu giá tăng song song. Cần xem thêm quality của lead trước khi kết luận là tốt hay xấu.');
+    notes.push('🔍 CR cải thiện nhưng CPL cũng tăng — có thể lead chất lượng hơn (đắt hơn hợp lý) hoặc chi phí đấu giá tăng song song không liên quan đến chất lượng. Cần xem thêm chất lượng lead thực tế trước khi kết luận tốt hay xấu.');
   }
+  notes.push('<span style="color:var(--muted);font-size:10.5px;">Suy luận dựa trên decision-tree skill <i>paid-ads</i> — chưa xác nhận qua campaign ID thật trên Ads Manager.</span>');
   return notes;
 }
 function openDrawer(campaign, v){
