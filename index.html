@@ -937,7 +937,7 @@ function openDrawer(campaign, v){
       <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;">📍 Landing Page / Screen (30 ngày gần nhất)</div>
       ${landingData.map(l=>`<div style="padding:5px 0;border-bottom:1px solid #1c2025;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.url ? `<a href="${l.url}" target="_blank" style="color:#6ab0ff;text-decoration:none;">${l.url.length>55?l.url.slice(0,55)+'…':l.url}</a>` : `${PAGE_TYPE_LABEL[l.page_type] || l.page_type || '(không xác định)'} <span style="color:var(--muted);">(chỉ biết loại trang, không có URL cụ thể)</span>`}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.url ? `<a href="${l.url}" target="_blank" style="color:#6ab0ff;text-decoration:none;">${l.url.length>55?l.url.slice(0,55)+'…':l.url}</a>` : l.page_type ? `${PAGE_TYPE_LABEL[l.page_type] || l.page_type} <span style="color:var(--muted);">(chỉ biết loại trang, không có URL cụ thể)</span>` : `<span style="color:var(--muted);">Không ghi nhận landing screen (session không có page_type/category trong data — có thể bounce ngay hoặc lỗi tracking)</span>`}</span>
           <span style="color:var(--muted);font-family:var(--mono);flex-shrink:0;">${fmt(l.sessions)} sessions</span>
         </div>
         <div style="margin-top:2px;font-size:11px;color:var(--muted);">${l.platform_label || l.platform || ''}${l.category ? ' · category: ' + l.category : ''}</div>
