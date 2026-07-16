@@ -85,15 +85,15 @@
 
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
   thead th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;
-    letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;
+    letter-spacing:.03em;padding:8px 6px;border-bottom:1px solid var(--border);cursor:pointer;
     white-space:nowrap;position:sticky;top:0;background:var(--panel);user-select:none;}
   thead th:hover{color:var(--text);}
   thead th.sorted{color:var(--yellow);}
   thead th .arrow{font-size:9px;margin-left:3px;opacity:.7;}
   tbody tr{border-bottom:1px solid #1c2025;cursor:pointer;transition:background .1s;}
   tbody tr:hover{background:#191d22;}
-  tbody td{padding:9px 10px;font-family:var(--mono);white-space:nowrap;}
-  tbody td.campaign-name{font-family:var(--sans);white-space:normal;max-width:280px;font-size:12.5px;}
+  tbody td{padding:9px 6px;font-family:var(--mono);white-space:nowrap;}
+  tbody td.campaign-name{font-family:var(--sans);white-space:nowrap;font-size:12.5px;}
   .ch-pill{font-size:10px;padding:2px 7px;border-radius:20px;font-family:var(--sans);font-weight:600;}
   .cr-cell{font-weight:700;}
   .cr-bad{color:var(--red);}
@@ -1006,7 +1006,7 @@ function renderSupplyDemandCheck(v){
     <ul class="desc" style="margin:6px 0 0;padding-left:18px;">
       <li><b>Conversion issue X%</b>: % phân khúc có buyer xem/tương tác nhưng ít ra deal — vấn đề chất lượng tin/matching trong phân khúc đó, <b>không phải thiếu nguồn cung</b>.</li>
       <li><b>Demand issue X%</b>: % phân khúc có tin đăng nhưng thiếu buyer quan tâm.</li>
-      <li>Cả 2 chỉ mang tính chẩn đoán, không tính vào badge khỏe/yếu ở trên. Action khi cao là Category/Sales/Product cải thiện chất lượng tin/matching, <b>không phải giảm traffic marketing</b>.</li>
+      <li>Chỉ mang tính chẩn đoán, không tính vào badge khỏe/yếu ở trên. Action là Category/Sales/Product cải thiện chất lượng tin/matching, <b>không phải giảm traffic marketing</b>.</li>
     </ul>
     <div class="channel-split">${cards}</div>
   </div>`;
