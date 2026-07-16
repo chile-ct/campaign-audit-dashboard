@@ -809,25 +809,37 @@ function gapSentence(metricLabel, curTxt, goalTxt, gapPct, lowerIsBetter, closer
   return `<div>🎯 <b>${metricLabel}</b> hiện tại <b>${curTxt}</b> (goal ${goalTxt}) — <span style="color:${color};font-weight:700">${verb} ${Math.abs(gapPct*100).toFixed(1)}%</span>${dirTxt}.</div>`;
 }
 
-function renderChannelSplit(v){
-  const s = activeSummary()[v];
+function computeNetworkSplit(v){
+  const nets = { Facebook: {dau:0, save:0, adview:0, lead:0, totalLead:0}, Google: {dau:0, save:0, adview:0, lead:0, totalLead:0} };
   const isMonthly = selectedMonth !== 'last30';
-  function box(ch){
-    const d = s[ch];
+  getActiveCampaignRows(v).forEach(r=>{
+    const [campaign, , dau, save, adview, lead, totalLead] = r;
+    const net = campaignNetwork(campaign);
+    if (!nets[net]) return;
+    nets[net].dau += dau; nets[net].save += save; nets[net].adview += adview;
+    nets[net].lead += lead; nets[net].totalLead += totalLead;
+  });
+  return { nets, isMonthly };
+}
+function networkColor(net){ return net === 'Facebook' ? '#2561CF' : '#F26622'; }
+function renderChannelSplit(v){
+  const { nets, isMonthly } = computeNetworkSplit(v);
+  function box(net){
+    const d = nets[net];
     const cr = d.dau ? d.lead/d.dau : 0;
     const adviewRate = d.dau ? d.adview/d.dau : 0;
     const saveRate = d.dau ? d.save/d.dau : 0;
-    const color = channelColor(ch);
+    const color = networkColor(net);
     return `
     <div class="channel-box">
-      <div class="ch-title"><span>${ch}</span><span class="badge" style="background:${color}22;color:${color}">DAU ${fmt(d.dau)}</span></div>
+      <div class="ch-title"><span>${net}</span><span class="badge" style="background:${color}22;color:${color}">DAU ${fmt(d.dau)}</span></div>
       <div class="funnel-row"><div class="flabel">DAU</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:100%;background:${color}"></div></div><div class="fval">${fmt(d.dau)}</div></div>
       <div class="funnel-row"><div class="flabel">w/ Adview</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${adviewRate*100}%;background:${color}cc"></div></div><div class="fval">${pct(adviewRate)}</div></div>
       <div class="funnel-row"><div class="flabel">w/ Save</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${isMonthly?0:saveRate*100}%;background:${color}99"></div></div><div class="fval">${isMonthly?'— (chỉ có ở 30d)':pct(saveRate)}</div></div>
       <div class="funnel-row"><div class="flabel">w/ Lead</div><div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${cr*100}%;background:${cr<0.08?'#FF2636':'#2ecc71'}"></div></div><div class="fval" style="color:${cr<0.08?'#ff6b76':'#2ecc71'};font-weight:700">${pct(cr)}</div></div>
     </div>`;
   }
-  return `<div class="channel-split">${box('Display')}${box('Paid Search')}</div>`;
+  return `<div class="channel-split">${box('Facebook')}${box('Google')}</div>`;
 }
 
 function computeMonthlyCR(v){
@@ -1330,7 +1342,7 @@ function render(){
   buildTabs();
   const v = currentVertical;
   const monthNote = `<div style="margin:-6px 0 14px;color:var(--muted);font-size:11.5px;font-family:var(--mono);">📅 Đang xem: <b style="color:var(--yellow)">${monthLabel()}</b> — bảng Campaign Detail bên dưới luôn cố định theo snapshot 30 ngày gần nhất (dữ liệu campaign-level theo tháng chỉ có cho các campaign đã root-cause deep-dive).</div>`;
-  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderChannelSplit(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderTable(v);
+  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderChannelSplit(v) + renderTable(v);
   document.querySelectorAll('thead th').forEach(th=>{
     th.addEventListener('click', ()=>{ const key=th.dataset.key; if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=1; } render(); });
   });
