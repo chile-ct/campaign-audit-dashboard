@@ -978,7 +978,7 @@ function renderSupplyDemandCheck(v){
       }
       const displayVal = m.val < 10 ? m.val.toFixed(2) : m.val.toFixed(0);
       const barWidth = Math.min(100, (m.val / (m.threshold*2)) * 100);
-      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap" style="position:relative;" title="Ngưỡng khỏe: ${m.threshold}"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;opacity:.55;"></div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
+      return `<div class="funnel-row"><div class="flabel">${m.label}</div><div class="funnel-bar-wrap" style="position:relative;overflow:visible;" title="Ngưỡng khỏe: ${m.threshold}"><div class="funnel-bar" style="width:${barWidth}%;background:${color}"></div><div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;opacity:.55;"></div><div style="position:absolute;left:50%;top:-13px;transform:translateX(-50%);font-size:9px;color:#fff;opacity:.8;white-space:nowrap;">${m.threshold}</div></div><div class="fval" style="color:${color};font-weight:700">${displayVal}</div></div>`;
     }).join('');
     if (!failing.length) explainLines.push(`<div>✅ Cả 4 metric đều đạt ngưỡng khỏe — marketplace không phải nguyên nhân chính, vấn đề (nếu có) nằm ở phía campaign/content.</div>`);
     // Conversion/Demand issue: diagnostic roll-ups (NOT part of the health verdict — no defined
@@ -1037,7 +1037,15 @@ function getActiveCampaignRows(v){
       return [campaign, channel, dau, 0, adview, lead, totalLead];
     });
   }
-  return rows.filter(r => !EXCLUDED_CAMPAIGNS.has(r[0]) && !EXCLUDED_NAME_PATTERN.test(r[0]));
+  return rows.filter(r => {
+    if (EXCLUDED_CAMPAIGNS.has(r[0]) || EXCLUDED_NAME_PATTERN.test(r[0])) return false;
+    // Drop campaigns where this vertical is a minority of their total DAU — cross-vertical
+    // incidental touches only add noise here and their CPL is inflated (spend isn't split
+    // per vertical). Keep only campaigns primarily belonging to the vertical being viewed.
+    const share = campaignVerticalShare(r[0], v);
+    if (share != null && share < 0.5) return false;
+    return true;
+  });
 }
 
 function getFilteredSortedRows(v){
@@ -1206,7 +1214,7 @@ function openDrawer(campaign, v){
   const landingRemainder = landingData ? Math.max(0, Math.round((100 - landingData.top.reduce((s,l)=>s+l.pct,0))*10)/10) : 0;
   const landingHtml = landingData ? `
     <div class="panel" style="padding:14px 16px;margin-bottom:16px;">
-      <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;">📍 Landing Page / Screen — của đúng session được tính DAU vào ${VERTICALS[v].name} (30 ngày gần nhất)</div>
+      <div style="font-weight:700;color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;">📍 Landing Page / Screen (30 ngày gần nhất)</div>
       ${landingData.top.map(l=>`<div style="padding:5px 0;border-bottom:1px solid #1c2025;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
           <span style="word-break:break-all;">${l.url ? `<a href="${l.url}" target="_blank" style="color:#6ab0ff;text-decoration:none;">${l.url}</a>` : l.page_type ? `${PAGE_TYPE_LABEL[l.page_type] || l.page_type}` : `<span style="color:var(--muted);">Không ghi nhận landing screen (session không có page_type/category trong data — có thể bounce ngay hoặc lỗi tracking)</span>`}</span>
