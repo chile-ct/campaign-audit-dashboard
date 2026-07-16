@@ -65,7 +65,7 @@
   .panel h2{font-size:14px;margin:0 0 4px;font-weight:700;}
   .panel .desc{color:var(--muted);font-size:12px;margin-bottom:14px;}
 
-  .channel-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
+  .channel-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;margin-bottom:18px;}
   @media (max-width:760px){.channel-split{grid-template-columns:1fr;}}
   .channel-box{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
   .channel-box .ch-title{font-weight:700;font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
@@ -770,10 +770,10 @@ function renderCards(v){
   const gapTxt = cplGapPct == null ? 'chưa đủ data spend' : `${cplGapPct>=0?'+':''}${(cplGapPct*100).toFixed(1)}% vs goal`;
   return `
   <div class="grid-cards">
-    <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub" style="color:var(--muted);">Ref: CP DAU ${fmtVND(GOALS[v].cp_dau)} · CP MAU ${fmtVND(GOALS[v].cp_mau)} (TB năm)</div></div>
+    <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub" style="color:var(--muted);">CP DAU ${fmtVND(GOALS[v].cp_dau)} · CP MAU ${fmtVND(GOALS[v].cp_mau)}</div></div>
     <div class="card"><div class="label">DAU w/ Save</div><div class="value">${fmt(c.save)}</div><div class="sub">${pct(c.save/c.dau)} of DAU</div></div>
     <div class="card"><div class="label">DAU w/ Adview</div><div class="value">${fmt(c.adview)}</div><div class="sub">${pct(c.adview/c.dau)} of DAU</div></div>
-    <div class="card"><div class="label">DAU w/ Lead</div><div class="value">${fmt(c.lead)}</div><div class="sub">${pct(c.cr)} CR DAU→Lead</div><div class="sub" style="color:var(--muted);margin-top:2px;">Ref: CP DwL ${fmtVND(GOALS[v].cp_dwl)} · CP MwL ${fmtVND(GOALS[v].cp_mwl)} (TB năm)</div></div>
+    <div class="card"><div class="label">DAU w/ Lead</div><div class="value">${fmt(c.lead)}</div><div class="sub">${pct(c.cr)} CR DAU→Lead</div><div class="sub" style="color:var(--muted);margin-top:2px;">CP DwL ${fmtVND(GOALS[v].cp_dwl)} · CP MwL ${fmtVND(GOALS[v].cp_mwl)}</div></div>
     <div class="card"><div class="label">Total Lead</div><div class="value">${fmt(c.totalLead)}</div><div class="sub">Lead/DAU = ${c.leadPerDau.toFixed(2)}</div></div>
     <div class="card warn" id="cardAvgCPL">
       <div class="label">Average CPL</div><div class="value">${avgCPL!=null?fmtVND(avgCPL):'—'}</div>
@@ -813,8 +813,8 @@ function computeNetworkSplit(v){
   const nets = { Facebook: {dau:0, save:0, adview:0, lead:0, totalLead:0}, Google: {dau:0, save:0, adview:0, lead:0, totalLead:0} };
   const isMonthly = selectedMonth !== 'last30';
   getActiveCampaignRows(v).forEach(r=>{
-    const [campaign, , dau, save, adview, lead, totalLead] = r;
-    const net = campaignNetwork(campaign);
+    const [campaign, channel, dau, save, adview, lead, totalLead] = r;
+    const net = campaignNetwork(campaign, channel);
     if (!nets[net]) return;
     nets[net].dau += dau; nets[net].save += save; nets[net].adview += adview;
     nets[net].lead += lead; nets[net].totalLead += totalLead;
@@ -1062,17 +1062,18 @@ function getActiveCampaignRows(v){
 
 // Naming-convention heuristic — there's no explicit network field, so this infers it from
 // campaign name tags used in practice (_gg_/pmax/dsa/demandgen = Google, _fb_/b2s-surround = Meta).
-function campaignNetwork(name){
+function campaignNetwork(name, channel){
   if (/_gg_|pmax|dsa|demandgen|_google_/i.test(name)) return 'Google';
   if (/_fb_|b2s.surround/i.test(name)) return 'Facebook';
   if (/search/i.test(name)) return 'Google';
+  if (channel === 'Display' && /clicklink/i.test(name)) return 'Facebook';
   return 'Khác';
 }
 function getFilteredSortedRows(v){
   let rows = getActiveCampaignRows(v).map(r=>{
     const [campaign, channel, dau, save, adview, lead, totalLead] = r;
     const spendInfo = getSpendInfo(campaign);
-    return { campaign, channel, dau, save, adview, lead, totalLead, cr: lead/dau, adviewRate: adview/dau, saveRate: save/dau, leadPerDau: totalLead/dau, cpl: spendInfo ? spendInfo.cpl : -1, network: campaignNetwork(campaign) };
+    return { campaign, channel, dau, save, adview, lead, totalLead, cr: lead/dau, adviewRate: adview/dau, saveRate: save/dau, leadPerDau: totalLead/dau, cpl: spendInfo ? spendInfo.cpl : -1, network: campaignNetwork(campaign, channel) };
   });
   if (filterChannel !== 'all') rows = rows.filter(r=>r.network===filterChannel);
   if (filterText.trim()){ const q = filterText.toLowerCase(); rows = rows.filter(r=>r.campaign.toLowerCase().includes(q)); }
