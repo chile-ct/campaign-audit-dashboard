@@ -147,7 +147,6 @@
         </select>
       </label>
       <button class="refresh-btn" id="btnRefreshLive">🔄 Refresh Data</button>
-      <div class="last-refreshed" id="lastRefreshed">Đang tải data mới nhất...</div>
     </div>
   </header>
 
@@ -470,16 +469,16 @@ const FLAGS = {
   fix:["Không cần action khẩn cấp.","Xác nhận với Growth/Media buyer đây có phải chủ đích cắt giảm hay ngân sách bị auto-throttle."]},
 "digital_fb_pty_let_house_conversion_b2s-surround-hcm": {level:"red",
   issue:"CPL cực đắt: 3.40M đ chi cho chỉ 15 lead trong tháng đầu = 226,932đ/lead — đắt gấp 30-40 lần so với benchmark pty (~3,000–7,000đ/lead).",
-  cause:["XÁC NHẬN QUA META ADS MCP (campaign khớp gần nhất theo tên/audience: \"brand_eng_renter_b2s_pty_b2c_0726_0826\"): optimization_goal của cả 3 ad set là POST_ENGAGEMENT, KHÔNG PHẢI lead/conversion — dù UTM đặt tên có chữ \"conversion\". Đây là lỗi setup campaign, không phải vấn đề audience hay landing page.","Audience đang target: sinh viên 18-19 tuổi, tỉnh lẻ, quan tâm đại học (\"sinhvien_18_19_tinh_le\", \"sinhvien_interested_university_18_19_tinh_le\") — persona phù hợp với thuê trọ, audience KHÔNG sai.","Lưu ý: match theo tên/audience gần đúng nhất tìm được qua Meta Ads MCP, UTM campaign name không nhất thiết trùng 100% với Meta campaign ID — cần Kiệt xác nhận lại chính xác campaign ID nào tương ứng."],
-  fix:["Đổi optimization_goal từ POST_ENGAGEMENT sang LEAD_GENERATION hoặc CONVERSIONS ngay — đây có thể là root cause chính, quan trọng hơn cả việc pause/rebrief creative.","Sau khi đổi objective, theo dõi lại CPL 1-2 tuần trước khi quyết định tiếp.","Vẫn nên rà landing page/CTA song song để loại trừ hoàn toàn."]},
+  cause:["Chưa xác định được root cause chắc chắn — lần trước có tra Meta Ads MCP nhưng match campaign theo tên/audience gần đúng, không đúng campaign ID thật nên kết luận cũ (optimization_goal sai) không đáng tin, đã bỏ.","Cần tra lại trực tiếp trên Meta Ads Manager với đúng campaign ID (không suy đoán qua tên) để biết chính xác objective/audience/creative đang chạy."],
+  fix:["Lấy đúng campaign ID thật trên Meta Ads Manager (từ Kiệt hoặc người quản lý tài khoản) rồi mới kiểm tra objective — không nên tự đổi objective khi chưa xác nhận đúng campaign.","Trong lúc chờ xác nhận, có thể tạm giảm budget campaign này vì CPL đang quá cao so với benchmark."]},
 "digital_fb_pty_let_apartment_conversion_b2s-surround-hcm": {level:"red",
   issue:"CPL còn đắt hơn: 3.43M đ chi cho chỉ 12 lead = 285,770đ/lead — cao nhất trong nhóm B2S-surround.",
-  cause:["Cùng root cause với campaign nhà nguyên căn (xem chi tiết ở campaign đó): campaign Meta khớp gần nhất có optimization_goal = POST_ENGAGEMENT, không phải lead — không phải vấn đề audience hay landing page.","Audience sinh viên 18-19 tuổi tỉnh lẻ vẫn hợp lý cho nhu cầu thuê trọ."],
-  fix:["Đổi optimization_goal sang LEAD_GENERATION/CONVERSIONS, cùng lúc với campaign nhà nguyên căn.","Theo dõi CPL sau khi đổi trước khi quyết định tiếp."]},
+  cause:["Cùng tình trạng với campaign nhà nguyên căn (xem chi tiết ở campaign đó) — chưa xác định được root cause chắc chắn vì lần tra Meta Ads MCP trước match sai campaign ID.","Cần tra lại đúng campaign ID thật trên Meta Ads Manager trước khi kết luận."],
+  fix:["Lấy đúng campaign ID thật rồi kiểm tra lại objective/audience/creative trên Meta Ads Manager.","Trong lúc chờ, cân nhắc giảm budget vì CPL đang rất cao so với benchmark pty."]},
 "digital_fb_pty_let_room_conversion_b2s-surround-hcm": {level:"yellow",
   issue:"CPL 35,751đ/lead (3.43M đ / 96 lead) — vẫn đắt hơn benchmark pty (~3,000–7,000đ/lead) nhưng đỡ hơn nhiều so với 2 campaign B2S còn lại (226K–286K đ/lead).",
-  cause:["Cùng nhóm B2S-surround, cùng vấn đề optimization_goal = POST_ENGAGEMENT (xem chi tiết ở 2 campaign kia) — nhưng targeting phòng trọ có vẻ bắt đúng nhu cầu hơn 2 loại hình còn lại nên đỡ tệ hơn."],
-  fix:["Đổi optimization_goal sang lead/conversion giống 2 campaign kia — không cần pause vì đây là campaign đỡ tệ nhất trong nhóm.","Theo dõi CPL sát sau khi đổi."]},
+  cause:["Cùng nhóm B2S-surround với 2 campaign trên — chưa xác định được root cause chắc chắn (lý do tương tự, xem 2 campaign kia)."],
+  fix:["Tra đúng campaign ID thật trên Meta Ads Manager cùng lúc với 2 campaign kia — CPL đỡ tệ hơn nên chưa cần giảm budget gấp."]},
 "digital_gds_elt_5010_gg_pmaxwfeed": {level:"yellow",
   issue:"CR giảm dần khi scale: Mar 6.8% → Jul 2.6%. CPL tăng gấp 4 lần: Mar 1,003đ → Jul 4,277đ, trong khi spend tăng gần 3 lần (15.4M → 45.5M đ/tháng).",
   cause:["Nguyên nhân 1 — Đánh đổi kinh điển scale-vs-quality của PMax: càng scale, audience càng bị pha loãng.","Nguyên nhân 2 (từ cross-check marketplace) — ELT đang THẬT SỰ thiếu tin đăng ở nhiều phân khúc (supply_balance 0.68, 24.4% segment undersupply — cao nhất toàn audit). Traffic tăng lên nhưng một phần rơi vào phân khúc không đủ hàng để convert.","→ 2 nguyên nhân cộng dồn, số liệu CPL xác nhận bằng tiền thật."],
@@ -610,9 +609,8 @@ async function runBQ(sql){
 
 async function refreshLiveData(){
   const btn = document.getElementById('btnRefreshLive');
-  const statusEl = document.getElementById('lastRefreshed');
   if (!bridgeAvailable()){
-    statusEl.textContent = '⚠️ Live bridge chưa detect được trong artifact này — vẫn dùng snapshot.';
+    console.warn('Live bridge chưa detect được trong artifact này — vẫn dùng snapshot.');
     return;
   }
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Đang query BigQuery...';
@@ -650,18 +648,15 @@ async function refreshLiveData(){
     CAMPAIGNS = newCampaigns;
     Object.keys(newSpend).forEach(k=>{ SPEND_LAST30[k] = newSpend[k]; });
     lastRefreshedAt = new Date();
-    statusEl.textContent = '✅ Đã refresh live lúc ' + lastRefreshedAt.toLocaleString('vi-VN') + ' (funnel + campaign + spend 30 ngày).';
     render();
   } catch(err){
     console.error(err);
-    statusEl.textContent = '❌ Lỗi khi gọi BigQuery: ' + (err.message || err);
   } finally {
     btn.disabled = false; btn.innerHTML = '🔄 Refresh Live Data (30d, ~4GB)';
   }
 }
 
 async function loadStaticSnapshot(isManualClick){
-  const statusEl = document.getElementById('lastRefreshed');
   const btn = document.getElementById('btnRefreshLive');
   if (isManualClick){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Đang tải data mới nhất...'; }
   try {
@@ -672,11 +667,9 @@ async function loadStaticSnapshot(isManualClick){
     CAMPAIGNS = data.campaigns;
     Object.keys(data.spend_last30 || {}).forEach(k => { SPEND_LAST30[k] = data.spend_last30[k]; });
     lastRefreshedAt = new Date(data.generated_at);
-    statusEl.textContent = '🟢 Dữ liệu 30 ngày gần nhất — tự động cập nhật lúc ' + lastRefreshedAt.toLocaleString('vi-VN') + ' (cron hàng ngày).';
     render();
   } catch(err){
     console.error(err);
-    statusEl.textContent = '⚠️ Chưa lấy được data/live-snapshot.json — đang hiện snapshot đóng băng lúc build. (' + (err.message || err) + ')';
   } finally {
     if (isManualClick){ btn.disabled = false; btn.innerHTML = '🔄 Refresh Data'; }
   }
@@ -788,28 +781,39 @@ function renderGoalGapModal(v){
   const lastCpl = monthlyCpl[monthlyCpl.length-1].cpl, prevCpl = monthlyCpl[monthlyCpl.length-2].cpl;
   const crTrendCloser = Math.abs(lastCr - g.crGoal) < Math.abs(prevCr - g.crGoal);
   const cplTrendCloser = (lastCpl!=null && prevCpl!=null) ? Math.abs(lastCpl - g.cplGoal) < Math.abs(prevCpl - g.cplGoal) : null;
-  function gapBadge(gapPct, closer, lowerIsBetter){
-    if (gapPct == null) return `<span style="color:var(--muted)">— chưa đủ data</span>`;
+
+  const crGood = g.crGapPct != null && g.crGapPct >= 0;
+  const cplGood = g.cplGapPct != null && g.cplGapPct <= 0;
+  const bothGood = crGood && cplGood;
+  const bothBad = g.crGapPct != null && g.cplGapPct != null && !crGood && !cplGood;
+  const overallLevel = bothGood ? 'green' : bothBad ? 'red' : 'yellow';
+  const overallLabel = bothGood ? '🟢 Đang đạt cả 2 goal' : bothBad ? '🔴 Chưa đạt cả CPL lẫn CR' : '🟡 Đạt 1/2 goal';
+
+  function sentence(metricLabel, curTxt, goalTxt, gapPct, lowerIsBetter, closer){
+    if (gapPct == null) return `<li>${metricLabel}: ${curTxt} — chưa đủ data spend để so với goal (${goalTxt}).</li>`;
     const good = lowerIsBetter ? gapPct <= 0 : gapPct >= 0;
-    const color = good ? '#2ecc71' : (Math.abs(gapPct) < 0.2 ? '#FFBA00' : '#FF2636');
-    const dirTxt = closer == null ? '' : (closer ? ' · 📉 đang tiến gần goal so với tháng trước' : ' · 📈 đang rời xa goal so với tháng trước');
-    const label = good ? 'đạt goal' : (lowerIsBetter ? 'cao hơn goal' : 'thấp hơn goal');
-    return `<span style="color:${color};font-weight:700">${(gapPct>=0?'+':'')}${(gapPct*100).toFixed(1)}% (${label})</span>${dirTxt}`;
+    const color = good ? '#2ecc71' : (Math.abs(gapPct) < 0.2 ? '#FFBA00' : '#ff6b76');
+    const verb = good ? (lowerIsBetter?'thấp hơn':'cao hơn') + ' goal' : (lowerIsBetter?'cao hơn':'thấp hơn') + ' goal';
+    const dirTxt = closer == null ? '' : (closer ? ', và đang <b>tiến gần goal hơn</b> so với tháng trước' : ', nhưng đang <b>rời xa goal</b> so với tháng trước');
+    return `<li><b>${metricLabel}</b> hiện tại <b>${curTxt}</b> (goal ${goalTxt}) — <span style="color:${color};font-weight:700">${verb} ${Math.abs(gapPct*100).toFixed(1)}%</span>${dirTxt}.</li>`;
   }
+
+  const refRows = ['cp_dau','cp_dwl','cp_mau','cp_mwl'].map(k=>{
+    const labels = { cp_dau:'CP DAU', cp_dwl:'CP DwL (DAU w/Lead)', cp_mau:'CP MAU', cp_mwl:'CP MwL (MAU w/Lead)' };
+    return `${labels[k]} trung bình năm: ${fmtVND(GOALS[v][k])}`;
+  }).join(' · ');
+
   return `
     <span class="drawer-close" id="goalModalCloseBtn">&times;</span>
     <h3>🎯 Gap Analysis vs Goal — ${VERTICALS[v].name}</h3>
-    <div class="drawer-sub">Goal do mkt-director đặt (target theo tháng, FC2 2026) · timeframe đang chọn: ${monthLabel()}</div>
-    <div class="note-box" style="border-left-color:#6ab0ff;">Ưu tiên tối ưu theo CPL + %CR to lead — 2 tiêu chí này dùng để đánh giá root cause/gap ở cả campaign lẫn tổng thể.</div>
-    <div class="metric-grid">
-      <div class="m"><div class="l">CR to Lead — hiện tại</div><div class="v">${pct(g.cr)}</div></div>
-      <div class="m"><div class="l">CR to Lead — goal</div><div class="v">${pct(g.crGoal)}</div></div>
-      <div class="m" style="grid-column:span 2"><div class="l">Gap CR</div><div class="v" style="font-size:13px;">${gapBadge(g.crGapPct, crTrendCloser, false)}</div></div>
-      <div class="m"><div class="l">CPL — hiện tại</div><div class="v">${g.cpl!=null?fmtVND(g.cpl):'—'}</div></div>
-      <div class="m"><div class="l">CPL — goal</div><div class="v">${fmtVND(g.cplGoal)}</div></div>
-      <div class="m" style="grid-column:span 2"><div class="l">Gap CPL</div><div class="v" style="font-size:13px;">${gapBadge(g.cplGapPct, cplTrendCloser, true)}</div></div>
+    <div class="flag ${overallLevel}">${overallLabel}</div>
+    <div class="note-box">
+      <ul style="margin:0;padding-left:18px;">
+        ${sentence('CPL', fmtVND(g.cpl), fmtVND(g.cplGoal), g.cplGapPct, true, cplTrendCloser)}
+        ${sentence('CR to Lead', pct(g.cr), pct(g.crGoal), g.crGapPct, false, crTrendCloser)}
+      </ul>
     </div>
-    <div class="desc" style="margin-top:10px;">Tham khảo thêm (chưa dùng để tính pass/fail): CP DAU goal ${fmtVND(g.goal.cp_dau)} · CP DwL goal ${fmtVND(g.goal.cp_dwl)} · CP MAU goal ${fmtVND(g.goal.cp_mau)} · CP MwL goal ${fmtVND(g.goal.cp_mwl)}.</div>`;
+    <div class="desc" style="margin-top:10px;">Tham khảo thêm — không dùng để tính pass/fail, chỉ để tham chiếu quy mô chi phí: ${refRows}.</div>`;
 }
 function openGoalModal(v){
   document.getElementById('drawerBody').innerHTML = renderGoalGapModal(v);
@@ -855,20 +859,21 @@ function renderMonthlyTrend(v){
   const bars = rows.map(r=>{
     const h = Math.max(4, (r.cr/maxCr)*60);
     const goalH = Math.min(60, (r.goal/maxCr)*60);
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex:1;">
       <div style="font-family:var(--mono);font-size:10px;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'}">${pct(r.cr)}</div>
+      <div style="font-family:var(--mono);font-size:9px;color:#6ab0ff;margin-bottom:3px;">🎯${pct(r.goal)}</div>
       <div style="position:relative;width:70%;height:60px;display:flex;align-items:flex-end;">
         <div style="width:100%;height:${h}px;background:${barColor(r.cr,r.goal)};border-radius:3px 3px 0 0;"></div>
         <div style="position:absolute;left:-15%;right:-15%;bottom:${goalH}px;border-top:2px dashed #6ab0ff;" title="Target tháng ${r.ym.slice(5)}: ${pct(r.goal)}"></div>
       </div>
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--muted)">${r.ym.slice(5)}</div>
+      <div style="font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:3px;">${r.ym.slice(5)}</div>
     </div>`;
   }).join('');
   return `
   <div class="panel">
     <h2>Xu hướng CR DAU→Lead theo tháng — ${VERTICALS[v].name}</h2>
-    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search. 🎯 Đường nét đứt = target riêng của từng tháng (FC2 2026).</div>
-    <div style="display:flex;align-items:flex-end;gap:8px;height:100px;padding:0 4px;">${bars}</div>
+    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search. 🎯 Số xanh + đường nét đứt = target riêng của từng tháng (FC2 2026).</div>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding:0 4px;">${bars}</div>
   </div>`;
 }
 
@@ -895,20 +900,21 @@ function renderMonthlyCPLTrend(v){
   const bars = rows.map(r=>{
     const h = r.cpl != null ? Math.max(4, (r.cpl/maxCpl)*60) : 0;
     const goalH = r.goal != null ? Math.min(60, (r.goal/maxCpl)*60) : null;
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex:1;">
       <div style="font-family:var(--mono);font-size:10px;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'}">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>
+      <div style="font-family:var(--mono);font-size:9px;color:#6ab0ff;margin-bottom:3px;">${r.goal!=null?'🎯'+fmtVND(r.goal):''}</div>
       <div style="position:relative;width:70%;height:60px;display:flex;align-items:flex-end;">
         <div style="width:100%;height:${h}px;background:${r.cpl!=null?barColor(r.cpl,r.goal||Infinity):'transparent'};border-radius:3px 3px 0 0;"></div>
         ${goalH!=null?`<div style="position:absolute;left:-15%;right:-15%;bottom:${goalH}px;border-top:2px dashed #6ab0ff;" title="Target tháng ${r.ym.slice(5)}: ${fmtVND(r.goal)}"></div>`:''}
       </div>
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--muted)">${r.ym.slice(5)}</div>
+      <div style="font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:3px;">${r.ym.slice(5)}</div>
     </div>`;
   }).join('');
   return `
   <div class="panel">
     <h2>Xu hướng Cost per Lead theo tháng — ${VERTICALS[v].name}</h2>
-    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search, loại (organic)/(none)/(referral)/*install* — nguồn: kiet_digital_campaign_daily. 🎯 Đường nét đứt = target riêng của từng tháng (FC2 2026).</div>
-    <div style="display:flex;align-items:flex-end;gap:8px;height:100px;padding:0 4px;">${bars}</div>
+    <div class="desc">Jan → Jul 2026 (Jul = MTD đến 15/7, đánh dấu *). Gộp cả Display + Paid Search, loại (organic)/(none)/(referral)/*install* — nguồn: kiet_digital_campaign_daily. 🎯 Số xanh + đường nét đứt = target riêng của từng tháng (FC2 2026).</div>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding:0 4px;">${bars}</div>
   </div>`;
 }
 
@@ -1042,8 +1048,7 @@ function fmtVND(n){ return Math.round(n).toLocaleString('en-US') + 'đ'; }
 function renderTable(v){
   const rows = getFilteredSortedRows(v);
   const cols = [ {key:'campaign',label:'Campaign'}, {key:'channel',label:'Channel'}, {key:'dau',label:'DAU'},
-    {key:'saveRate',label:'%Save'}, {key:'adviewRate',label:'%Adview'}, {key:'lead',label:'DAU w/Lead'},
-    {key:'totalLead',label:'Total Lead'}, {key:'cr',label:'CR→Lead'}, {key:'cpl',label:'CPL'} ];
+    {key:'lead',label:'DAU w/Lead'}, {key:'totalLead',label:'Total Lead'}, {key:'cr',label:'CR→Lead'}, {key:'cpl',label:'CPL'} ];
   const thead = cols.map(c=>{ const arrow = sortKey===c.key ? (sortDir===1?'▲':'▼') : ''; return `<th class="${sortKey===c.key?'sorted':''}" data-key="${c.key}">${c.label}<span class="arrow">${arrow}</span></th>`; }).join('');
   const tbody = rows.map(r=>{
     const flag = FLAGS[r.campaign];
@@ -1052,7 +1057,7 @@ function renderTable(v){
     return `<tr data-campaign="${encodeURIComponent(r.campaign)}">
       <td class="campaign-name">${flagDot}${r.campaign}</td>
       <td><span class="ch-pill" style="background:${channelColor(r.channel)}22;color:${channelColor(r.channel)}">${r.channel}</span></td>
-      <td>${fmt(r.dau)}</td><td>${pct(r.saveRate)}</td><td>${pct(r.adviewRate)}</td>
+      <td>${fmt(r.dau)}</td>
       <td>${fmt(r.lead)}</td><td>${fmt(r.totalLead)}</td>
       <td class="cr-cell ${crClass(r.cr, v)}">${pct(r.cr)}</td>${cplCell}</tr>`;
   }).join('');
