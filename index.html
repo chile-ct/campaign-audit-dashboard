@@ -798,6 +798,7 @@ function renderCards(v){
     <div class="card warn" id="cardAvgCPL">
       <div class="label">Average CPL</div><div class="value">${avgCPL!=null?fmtVND(avgCPL):'—'}</div>
       <div class="sub" style="color:${gapColor};">${gapTxt}</div>
+      <div class="sub" style="color:var(--muted);">Goal CPL ${fmtVND(goal.cpl)}</div>
     </div>
   </div>`;
 }
