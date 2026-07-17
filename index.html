@@ -761,9 +761,21 @@ function computeAvgCPL(v){
   return { avgCPL: leadSum > 0 ? spendSum / leadSum : null, spendCampaigns };
 }
 
+function computeAvgCostPerDwL(v){
+  const eligible = getActiveCampaignRows(v).filter(r=>r[2]>=100);
+  let spendSum = 0;
+  eligible.forEach(r=>{
+    const info = getSpendInfo(r[0]);
+    if (info) spendSum += info.spend;
+  });
+  const c = computeCards(v);
+  return c.lead > 0 ? spendSum / c.lead : null;
+}
+
 function renderCards(v){
   const c = computeCards(v);
   const { avgCPL } = computeAvgCPL(v);
+  const avgCostPerDwL = computeAvgCostPerDwL(v);
   const goal = resolvedGoal(v);
   const cplGapPct = (avgCPL != null && goal.cpl) ? (avgCPL - goal.cpl) / goal.cpl : null;
   const gapColor = cplGapPct == null ? 'var(--muted)' : (cplGapPct <= 0 ? '#2ecc71' : (cplGapPct < 0.2 ? '#FFBA00' : '#FF2636'));
@@ -771,9 +783,9 @@ function renderCards(v){
   return `
   <div class="grid-cards">
     <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub" style="color:var(--muted);">CP DAU ${fmtVND(GOALS[v].cp_dau)} · CP MAU ${fmtVND(GOALS[v].cp_mau)}</div></div>
-    <div class="card"><div class="label">DAU w/ Save</div><div class="value">${fmt(c.save)}</div><div class="sub">${pct(c.save/c.dau)} of DAU</div></div>
     <div class="card"><div class="label">DAU w/ Adview</div><div class="value">${fmt(c.adview)}</div><div class="sub">${pct(c.adview/c.dau)} of DAU</div></div>
-    <div class="card"><div class="label">DAU w/ Lead</div><div class="value">${fmt(c.lead)}</div><div class="sub">${pct(c.cr)} CR DAU→Lead</div><div class="sub" style="color:var(--muted);margin-top:2px;">CP DwL ${fmtVND(GOALS[v].cp_dwl)} · CP MwL ${fmtVND(GOALS[v].cp_mwl)}</div></div>
+    <div class="card"><div class="label">DAU w/ Lead</div><div class="value">${fmt(c.lead)}</div><div class="sub">${pct(c.cr)} CR DAU→Lead</div></div>
+    <div class="card"><div class="label">Avg. cost per DwL</div><div class="value">${avgCostPerDwL!=null?fmtVND(avgCostPerDwL):'—'}</div><div class="sub" style="color:var(--muted);">CP DwL ${fmtVND(GOALS[v].cp_dwl)} · CP MwL ${fmtVND(GOALS[v].cp_mwl)}</div></div>
     <div class="card"><div class="label">Total Lead</div><div class="value">${fmt(c.totalLead)}</div><div class="sub">Lead/DAU = ${c.leadPerDau.toFixed(2)}</div></div>
     <div class="card warn" id="cardAvgCPL">
       <div class="label">Average CPL</div><div class="value">${avgCPL!=null?fmtVND(avgCPL):'—'}</div>
