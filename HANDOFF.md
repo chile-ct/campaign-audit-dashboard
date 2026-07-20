@@ -17,9 +17,10 @@ Bản cũ (v3) đã lỗi thời ở phần cấu trúc UI/logic (rất nhiều 
 
 ## Kiến trúc dữ liệu — không đổi từ v3
 
-- **`index.html`** — toàn bộ dashboard: UI + logic + data nhúng tĩnh (build-time cho phần theo-tháng) + fetch live cho rolling-30-ngày.
+- **`index.html`** — toàn bộ dashboard: UI + logic + data nhúng tĩnh (chỉ còn là fallback lúc build) + fetch live cho cả rolling-30-ngày VÀ phần theo-tháng.
 - **`data/live-snapshot.json`** — snapshot 30-ngày gần nhất, auto-generated bởi GitHub Actions mỗi ngày 10:00 sáng giờ VN (`scripts/update_snapshot.py`). **Không sửa tay.**
-- **Zero-token pipeline**: `.github/workflows/update-dashboard.yml` chạy Python script trực tiếp query BigQuery — không qua AI, không tốn Claude token, chỉ tốn BQ job cost (~4GB/ngày). Secret `GOOGLE_CREDENTIALS` đã cấu hình sẵn.
+- **`data/monthly-snapshot.json`** — snapshot theo-tháng (`monthly_summary`, `monthly_campaigns`, `spend_by_month`), cũng auto-generated bởi cùng script/cùng lịch chạy mỗi ngày. **Chỉ tháng hiện tại (current calendar month) được re-query mỗi lần chạy** — các tháng đã qua giữ nguyên vì data không đổi (tự động chỉ thêm key tháng mới khi sang tháng, không xoá tháng cũ). `current_month` / `current_month_through` trong file này cho biết tháng nào đang là MTD và dữ liệu đã kéo tới ngày nào — frontend dùng 2 field này để tự sinh label "(MTD, đến X/Y)" thay vì hardcode. **Không sửa tay.**
+- **Zero-token pipeline**: `.github/workflows/update-dashboard.yml` chạy Python script trực tiếp query BigQuery — không qua AI, không tốn Claude token, chỉ tốn BQ job cost (~4GB/ngày cho phần 30-ngày + ~1-1.5GB/ngày cho phần tháng hiện tại, tăng dần theo số ngày đã qua trong tháng rồi reset về nhỏ khi sang tháng mới). Secret `GOOGLE_CREDENTIALS` đã cấu hình sẵn.
 - **4 vertical**: `pty` (Nhà Tốt), `veh` (Chợ Tốt Xe), `gds` (Chợ Tốt Goods), `jobs` (Việc Làm Tốt) — filter Paid Search + Display only, từ `chotot_data.traffic_visit_detail` UNNEST(category) join `dim.d_category` để lấy vertical.
 - **Touch-based attribution**: 1 session/campaign có thể được gán cho nhiều vertical nếu user chạm nhiều category trong 1 session — đây là methodology có chủ đích, không phải bug (đã note rõ trong code/UI).
 
@@ -68,7 +69,8 @@ Bản cũ (v3) đã lỗi thời ở phần cấu trúc UI/logic (rất nhiều 
 
 ## Việc còn dang dở / để ý khi làm tiếp
 
-- `SUPPLY_DEMAND_METRICS` vẫn là snapshot tĩnh 1 ngày, chưa tự động hoá qua GitHub Actions — chỉ phần 30-ngày (funnel/campaign/spend) đã live.
+- `SUPPLY_DEMAND_METRICS` vẫn là snapshot tĩnh 1 ngày, chưa tự động hoá qua GitHub Actions — chỉ phần 30-ngày và phần theo-tháng (funnel/campaign/spend) đã live.
+- Phần theo-tháng chỉ re-query tháng hiện tại mỗi lần chạy (rẻ, ~1-1.5GB) — nếu cần backfill lại một tháng đã qua vì phát hiện lỗi data, phải tự chạy tay 1 lần (sửa `DATE_TRUNC(CURRENT_DATE(), MONTH)` thành tháng cụ thể trong query, chạy 1 lần, rồi trả lại code gốc — đừng để logic backfill này chạy default mỗi ngày vì sẽ tốn lại full-year cost).
 - `campaignNetwork()` là heuristic theo tên, không phải mapping thật từ Ads Manager — sẽ có sai số với campaign đặt tên không theo convention. Mỗi lần user báo case sai (vd: "search" → Google, "clicklink"+Display → Facebook) thì thêm rule mới vào đúng function này, luôn test lại toàn bộ danh sách campaign trước khi push để tránh regression.
 - CPL/Landing/Audience mới cover subset campaign có spend data — phần còn lại thiếu nguồn.
 - Chưa tra được Meta campaign thật cho nhóm job theo vai trò.
@@ -80,6 +82,6 @@ Bản cũ (v3) đã lỗi thời ở phần cấu trúc UI/logic (rất nhiều 
 | Muốn làm | Sửa ở |
 |---|---|
 | Đổi UI, thêm chart, sửa cách tính CPL, sửa filter, sửa network classification... | `index.html` (bảng function ở trên) |
-| Đổi khung thời gian, thêm field mới vào snapshot 30 ngày | `scripts/update_snapshot.py` **và** `loadStaticSnapshot()` trong `index.html` phải khớp nhau |
+| Đổi khung thời gian, thêm field mới vào snapshot 30 ngày hoặc theo-tháng | `scripts/update_snapshot.py` **và** `loadStaticSnapshot()` trong `index.html` phải khớp nhau |
 | Đổi giờ chạy cron | `.github/workflows/update-dashboard.yml`, dòng `cron:` (giờ UTC, VN = UTC+7) |
-| Thêm data mới không phải rolling-30-ngày (vd: theo tháng, YTD) | Vẫn là snapshot tĩnh nhúng trong `index.html` lúc build — muốn tự động hoá thêm thì viết thêm query trong `update_snapshot.py` và field mới trong JSON |
+| Thêm data mới không nằm trong rolling-30-ngày hay theo-tháng (vd: quarterly, custom range) | Viết thêm query trong `update_snapshot.py`, field mới trong JSON, và merge logic tương ứng trong `loadStaticSnapshot()` |
