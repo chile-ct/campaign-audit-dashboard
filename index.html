@@ -954,10 +954,12 @@ function renderMonthlyTrend(v){
   const barW = isDay ? 8 : 20, gap = isDay ? 3 : 14;
   const lastGoalCr = rows.length ? rows[rows.length-1].goal : null;
   const goalLine = isDay && lastGoalCr!=null ? Math.max(0, Math.min(110, 110 - (lastGoalCr/maxCr)*110)) : null;
-  const cols = rows.map(r=>{
+  const cols = rows.map((r,i)=>{
     const h = Math.max(2, (r.cr/maxCr)*110);
     const label = isDay ? r.key.slice(8,10) : r.key.slice(5);
     const tip = isDay ? `${fmtDateVN(r.key)}: ${pct(r.cr)}` : `${label}: ${pct(r.cr)}`;
+    const edgeRatio = rows.length>1 ? i/(rows.length-1) : 0.5;
+    const tipPos = edgeRatio > 0.85 ? 'right:0;left:auto;transform:none;' : edgeRatio < 0.15 ? 'left:0;transform:none;' : '';
     const goalCol = !isDay ? `<div style="display:flex;flex-direction:column;align-items:center;">
           <div style="font-family:var(--mono);font-size:10px;color:#6ab0ff;margin-bottom:4px;">${pct(r.goal)}</div>
           <div style="width:${barW}px;height:${Math.max(2,(r.goal/maxCr)*110)}px;border:2px dashed #6ab0ff;border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box;"></div>
@@ -965,7 +967,7 @@ function renderMonthlyTrend(v){
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
       <div style="display:flex;align-items:flex-end;gap:${isDay?2:5}px;height:110px;">
         <div class="daybar-wrap" style="display:flex;flex-direction:column;align-items:center;">
-          ${isDay?`<span class="daybar-tip">${tip}</span>`:`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${pct(r.cr)}</div>`}
+          ${isDay?`<span class="daybar-tip" style="${tipPos}">${tip}</span>`:`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${pct(r.cr)}</div>`}
           <div style="width:${barW}px;height:${h}px;background:${barColor(r.cr,r.goal)};border-radius:2px 2px 0 0;cursor:default;"></div>
         </div>
         ${goalCol}
@@ -985,7 +987,7 @@ function renderMonthlyTrend(v){
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang, số hiện bên phải)':' tháng đó'}.
     </div>
     ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có cho 30 ngày gần nhất.</div>` : `
-    <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:8px 4px 0;overflow-x:${isDay?'auto':'visible'};">
+    <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:${isDay?'24px':'8px'} 4px 0;overflow-x:visible;">
       ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>
       <div style="position:absolute;right:6px;top:${Math.max(0,8+goalLine-14)}px;font-family:var(--mono);font-size:10px;color:#6ab0ff;background:var(--panel);padding:0 4px;z-index:2;">target ${pct(lastGoalCr)}</div>`:''}
       ${cols}
@@ -1036,10 +1038,12 @@ function renderMonthlyCPLTrend(v){
   const barW = isDay ? 8 : 20, gap = isDay ? 3 : 14;
   const lastGoal = rows.length ? rows[rows.length-1].goal : null;
   const goalLine = isDay && lastGoal!=null ? Math.max(0, Math.min(110, 110 - (lastGoal/maxCpl)*110)) : null;
-  const cols = rows.map(r=>{
+  const cols = rows.map((r,i)=>{
     const h = r.cpl != null ? Math.max(2, (r.cpl/maxCpl)*110) : 0;
     const goalH = r.goal != null ? Math.max(2, (r.goal/maxCpl)*110) : null;
     const label = isDay ? r.key.slice(8,10) : r.key.slice(5);
+    const edgeRatio = rows.length>1 ? i/(rows.length-1) : 0.5;
+    const tipPos = edgeRatio > 0.85 ? 'right:0;left:auto;transform:none;' : edgeRatio < 0.15 ? 'left:0;transform:none;' : '';
     const goalCol = (!isDay && r.goal!=null) ? `<div style="display:flex;flex-direction:column;align-items:center;">
           <div style="font-family:var(--mono);font-size:10px;color:#6ab0ff;margin-bottom:4px;">${fmtVND(r.goal)}</div>
           <div style="width:${barW}px;height:${goalH}px;border:2px dashed #6ab0ff;border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box;"></div>
@@ -1048,7 +1052,7 @@ function renderMonthlyCPLTrend(v){
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
       <div style="display:flex;align-items:flex-end;gap:${isDay?2:5}px;height:110px;">
         <div class="daybar-wrap" style="display:flex;flex-direction:column;align-items:center;">
-          ${isDay?`<span class="daybar-tip">${tip}</span>`:`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>`}
+          ${isDay?`<span class="daybar-tip" style="${tipPos}">${tip}</span>`:`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>`}
           <div style="width:${barW}px;height:${h}px;background:${r.cpl!=null?barColor(r.cpl,r.goal||Infinity):'transparent'};border:${r.cpl!=null?'none':'1px dashed var(--border)'};border-radius:2px 2px 0 0;cursor:default;"></div>
         </div>
         ${goalCol}
@@ -1068,7 +1072,7 @@ function renderMonthlyCPLTrend(v){
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang, số hiện bên phải)':' tháng đó'}.
     </div>
     ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có cho 30 ngày gần nhất.</div>` : `
-    <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:8px 4px 0;overflow-x:${isDay?'auto':'visible'};">
+    <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:${isDay?'24px':'8px'} 4px 0;overflow-x:visible;">
       ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>
       <div style="position:absolute;right:6px;top:${Math.max(0,8+goalLine-14)}px;font-family:var(--mono);font-size:10px;color:#6ab0ff;background:var(--panel);padding:0 4px;z-index:2;">target ${fmtVND(lastGoal)}</div>`:''}
       ${cols}
