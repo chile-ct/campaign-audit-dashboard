@@ -65,6 +65,12 @@
   .panel h2{font-size:14px;margin:0 0 4px;font-weight:700;}
   .panel .desc{color:var(--muted);font-size:12px;margin-bottom:14px;}
 
+  .daybar-wrap{position:relative;}
+  .daybar-tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+    background:#000;color:#fff;font-family:var(--mono);font-size:10.5px;padding:3px 7px;border-radius:5px;
+    white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .1s;z-index:5;}
+  .daybar-wrap:hover .daybar-tip{opacity:1;}
+
   .channel-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;margin-bottom:18px;}
   @media (max-width:760px){.channel-split{grid-template-columns:1fr;}}
   .channel-box{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
@@ -910,9 +916,17 @@ function computeMonthlyCR(v){
     return { key: ym, cr: dau ? lead/dau : 0, dau };
   });
 }
-function computeDailyCR(v){
+// Only the rolling last-30-days window has day-level data (DAILY_SUMMARY/SPEND_BY_DAY come
+// from the daily cron, which only keeps a 30-day lookback) — so when the top month/YTD filter
+// points at a specific calendar month, we slice down to just that month's days out of the
+// 30 available rather than pretending to have day-level history for arbitrary past months.
+function daysForSelectedMonth(){
   const days = Object.keys(DAILY_SUMMARY).sort();
-  return days.map(d=>{
+  if (selectedMonth === 'last30' || selectedMonth === 'ytd') return days;
+  return days.filter(d => d.slice(0,7) === selectedMonth);
+}
+function computeDailyCR(v){
+  return daysForSelectedMonth().map(d=>{
     const s = DAILY_SUMMARY[d][v];
     const dau = s.Display.dau + s['Paid Search'].dau;
     const lead = s.Display.lead + s['Paid Search'].lead;
@@ -934,7 +948,8 @@ function renderMonthlyTrend(v){
   const isDay = trendViewMode.cr === 'day';
   const rawRows = isDay ? computeDailyCR(v) : computeMonthlyCR(v);
   const rows = rawRows.map(r=>({...r, goal: monthlyGoal(v, isDay ? r.key.slice(0,7) : r.key).cr}));
-  const maxCr = Math.max(...rows.map(r=>r.cr), ...rows.map(r=>r.goal), 0.01);
+  const noDayData = isDay && rows.length === 0;
+  const maxCr = rows.length ? Math.max(...rows.map(r=>r.cr), ...rows.map(r=>r.goal), 0.01) : 0.01;
   const barColor = (cr, goal)=> cr < goal*0.5 ? '#FF2636' : cr < goal ? '#FFBA00' : '#2ecc71';
   const barW = isDay ? 8 : 20, gap = isDay ? 3 : 14;
   const lastGoalCr = rows.length ? rows[rows.length-1].goal : null;
@@ -949,9 +964,9 @@ function renderMonthlyTrend(v){
         </div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
       <div style="display:flex;align-items:flex-end;gap:${isDay?2:5}px;height:110px;">
-        <div style="display:flex;flex-direction:column;align-items:center;">
-          ${isDay?'':`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${pct(r.cr)}</div>`}
-          <div title="${tip}" style="width:${barW}px;height:${h}px;background:${barColor(r.cr,r.goal)};border-radius:2px 2px 0 0;cursor:default;"></div>
+        <div class="daybar-wrap" style="display:flex;flex-direction:column;align-items:center;">
+          ${isDay?`<span class="daybar-tip">${tip}</span>`:`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${pct(r.cr)}</div>`}
+          <div style="width:${barW}px;height:${h}px;background:${barColor(r.cr,r.goal)};border-radius:2px 2px 0 0;cursor:default;"></div>
         </div>
         ${goalCol}
       </div>
@@ -969,11 +984,12 @@ function renderMonthlyTrend(v){
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế (rê chuột để xem số) &nbsp;
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang, số hiện bên phải)':' tháng đó'}.
     </div>
+    ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có cho 30 ngày gần nhất.</div>` : `
     <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:8px 4px 0;overflow-x:${isDay?'auto':'visible'};">
       ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>
       <div style="position:absolute;right:6px;top:${Math.max(0,8+goalLine-14)}px;font-family:var(--mono);font-size:10px;color:#6ab0ff;background:var(--panel);padding:0 4px;z-index:2;">target ${pct(lastGoalCr)}</div>`:''}
       ${cols}
-    </div>
+    </div>`}
     <div class="note-box" style="margin-top:14px;">${gapSentence('CR to Lead (30 ngày gần nhất)', pct(g.cr), pct(g.crGoal), g.crGapPct, false, crTrendCloser)}</div>
   </div>`;
 }
@@ -996,7 +1012,7 @@ function computeMonthlyCPL(v){
 // (CAMPAIGNS[v], dau>=100 over the full 30-day window) — just re-summed per day from
 // SPEND_BY_DAY, so the day-view total lines up with the "Average CPL" card overall.
 function computeDailyCPL(v){
-  const days = Object.keys(SPEND_BY_DAY).sort();
+  const days = daysForSelectedMonth().filter(d => SPEND_BY_DAY[d]);
   const eligible = (CAMPAIGNS[v] || []).filter(r=>r[2]>=100).map(r=>r[0])
     .filter(name => !EXCLUDED_CAMPAIGNS.has(name) && !EXCLUDED_NAME_PATTERN.test(name));
   return days.map(d=>{
@@ -1013,8 +1029,9 @@ function renderMonthlyCPLTrend(v){
   const isDay = trendViewMode.cpl === 'day';
   const rawRows = isDay ? computeDailyCPL(v) : computeMonthlyCPL(v);
   const rows = rawRows.map(r=>({...r, goal: monthlyGoal(v, isDay ? r.key.slice(0,7) : r.key).cpl}));
+  const noDayData = isDay && rows.length === 0;
   const valid = rows.filter(r=>r.cpl != null).map(r=>r.cpl);
-  const maxCpl = Math.max(...valid, ...rows.map(r=>r.goal||0), 1);
+  const maxCpl = rows.length ? Math.max(...valid, ...rows.map(r=>r.goal||0), 1) : 1;
   const barColor = (cpl, goal)=> cpl > goal*1.5 ? '#FF2636' : cpl > goal ? '#FFBA00' : '#2ecc71';
   const barW = isDay ? 8 : 20, gap = isDay ? 3 : 14;
   const lastGoal = rows.length ? rows[rows.length-1].goal : null;
@@ -1030,9 +1047,9 @@ function renderMonthlyCPLTrend(v){
     const tip = (isDay ? fmtDateVN(r.key) : label) + ': ' + (r.cpl!=null?fmtVND(r.cpl):'—');
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
       <div style="display:flex;align-items:flex-end;gap:${isDay?2:5}px;height:110px;">
-        <div style="display:flex;flex-direction:column;align-items:center;">
-          ${isDay?'':`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>`}
-          <div title="${tip}" style="width:${barW}px;height:${h}px;background:${r.cpl!=null?barColor(r.cpl,r.goal||Infinity):'transparent'};border:${r.cpl!=null?'none':'1px dashed var(--border)'};border-radius:2px 2px 0 0;cursor:default;"></div>
+        <div class="daybar-wrap" style="display:flex;flex-direction:column;align-items:center;">
+          ${isDay?`<span class="daybar-tip">${tip}</span>`:`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>`}
+          <div style="width:${barW}px;height:${h}px;background:${r.cpl!=null?barColor(r.cpl,r.goal||Infinity):'transparent'};border:${r.cpl!=null?'none':'1px dashed var(--border)'};border-radius:2px 2px 0 0;cursor:default;"></div>
         </div>
         ${goalCol}
       </div>
@@ -1050,11 +1067,12 @@ function renderMonthlyCPLTrend(v){
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế (rê chuột để xem số) &nbsp;
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang, số hiện bên phải)':' tháng đó'}.
     </div>
+    ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có cho 30 ngày gần nhất.</div>` : `
     <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:8px 4px 0;overflow-x:${isDay?'auto':'visible'};">
       ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>
       <div style="position:absolute;right:6px;top:${Math.max(0,8+goalLine-14)}px;font-family:var(--mono);font-size:10px;color:#6ab0ff;background:var(--panel);padding:0 4px;z-index:2;">target ${fmtVND(lastGoal)}</div>`:''}
       ${cols}
-    </div>
+    </div>`}
     <div class="note-box" style="margin-top:14px;">${gapSentence('CPL (30 ngày gần nhất)', g.cpl!=null?fmtVND(g.cpl):'—', fmtVND(g.cplGoal), g.cplGapPct, true, cplTrendCloser)}</div>
   </div>`;
 }
