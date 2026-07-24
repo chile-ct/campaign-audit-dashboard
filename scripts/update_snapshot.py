@@ -387,7 +387,12 @@ else:
         }
 
     daily['generated_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    daily['last_day'] = query_end.isoformat()
+    # last_day must reflect the actual max date BigQuery returned data for, NOT query_end —
+    # the source table lags ~1 day, so query_end (today) often has zero rows yet. If we
+    # recorded last_day = today anyway, tomorrow's query_start would skip today forever,
+    # permanently losing that day once the source finally catches up.
+    recorded_dates = sorted(daily['daily_summary'].keys())
+    daily['last_day'] = recorded_dates[-1] if recorded_dates else query_end.isoformat()
     daily['history_start'] = DAILY_HISTORY_START.isoformat()
 
     os.makedirs(os.path.dirname(DAILY_JSON), exist_ok=True)
