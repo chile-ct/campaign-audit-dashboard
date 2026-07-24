@@ -547,6 +547,10 @@ const FLAGS = {
 let SUMMARY = SNAPSHOT_SUMMARY;
 let CAMPAIGNS = SNAPSHOT_CAMPAIGNS;
 let lastRefreshedAt = null;
+// Day-level breakdown of the rolling 30-day window, for the trend charts' "theo ngày" view.
+// Empty until the first data/live-snapshot.json fetch merges it in (no build-time fallback).
+let DAILY_SUMMARY = {};
+let SPEND_BY_DAY = {};
 
 function bridgeAvailable(){
   return !!(window.cowork && typeof window.cowork.callMcpTool === 'function');
@@ -679,6 +683,8 @@ async function loadStaticSnapshot(isManualClick){
     SUMMARY = data.summary;
     CAMPAIGNS = data.campaigns;
     Object.keys(data.spend_last30 || {}).forEach(k => { SPEND_LAST30[k] = data.spend_last30[k]; });
+    if (data.daily_summary) DAILY_SUMMARY = data.daily_summary;
+    if (data.spend_by_day) SPEND_BY_DAY = data.spend_by_day;
     lastRefreshedAt = new Date(data.generated_at);
   } catch(err){
     console.error(err);
@@ -896,54 +902,81 @@ function renderChannelSplit(v){
 }
 
 function computeMonthlyCR(v){
-  const months = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07"];
+  const months = Object.keys(MONTHLY_SUMMARY).sort();
   return months.map(ym=>{
     const s = MONTHLY_SUMMARY[ym][v];
     const dau = s.Display.dau + s['Paid Search'].dau;
     const lead = s.Display.lead + s['Paid Search'].lead;
-    return { ym, cr: dau ? lead/dau : 0, dau };
+    return { key: ym, cr: dau ? lead/dau : 0, dau };
+  });
+}
+function computeDailyCR(v){
+  const days = Object.keys(DAILY_SUMMARY).sort();
+  return days.map(d=>{
+    const s = DAILY_SUMMARY[d][v];
+    const dau = s.Display.dau + s['Paid Search'].dau;
+    const lead = s.Display.lead + s['Paid Search'].lead;
+    return { key: d, cr: dau ? lead/dau : 0, dau };
   });
 }
 
+// Shared "theo tháng / theo ngày" chip toggle for the two trend charts below.
+let trendViewMode = { cr: 'month', cpl: 'month' };
+function trendChip(metric){
+  const mode = trendViewMode[metric];
+  return `<div class="chip-toggle" style="display:inline-flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;font-size:11px;font-family:var(--sans);margin-left:10px;vertical-align:middle;">
+    <span class="chip-opt" data-metric="${metric}" data-mode="month" style="padding:4px 10px;cursor:pointer;${mode==='month'?'background:var(--yellow);color:#000;font-weight:700;':'color:var(--muted);'}">Theo tháng</span>
+    <span class="chip-opt" data-metric="${metric}" data-mode="day" style="padding:4px 10px;cursor:pointer;${mode==='day'?'background:var(--yellow);color:#000;font-weight:700;':'color:var(--muted);'}">Theo ngày</span>
+  </div>`;
+}
+
 function renderMonthlyTrend(v){
-  const rows = computeMonthlyCR(v).map(r=>({...r, goal: monthlyGoal(v, r.ym).cr}));
+  const isDay = trendViewMode.cr === 'day';
+  const rawRows = isDay ? computeDailyCR(v) : computeMonthlyCR(v);
+  const rows = rawRows.map(r=>({...r, goal: monthlyGoal(v, isDay ? r.key.slice(0,7) : r.key).cr}));
   const maxCr = Math.max(...rows.map(r=>r.cr), ...rows.map(r=>r.goal), 0.01);
   const barColor = (cr, goal)=> cr < goal*0.5 ? '#FF2636' : cr < goal ? '#FFBA00' : '#2ecc71';
+  const barW = isDay ? 8 : 20, gap = isDay ? 3 : 14;
+  const goalLine = isDay && rows.length ? Math.max(0, Math.min(110, 110 - (rows[rows.length-1].goal/maxCr)*110)) : null;
   const cols = rows.map(r=>{
-    const h = Math.max(3, (r.cr/maxCr)*110);
-    const goalH = Math.max(3, (r.goal/maxCr)*110);
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
-      <div style="display:flex;align-items:flex-end;gap:5px;height:110px;">
-        <div style="display:flex;flex-direction:column;align-items:center;">
-          <div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${pct(r.cr)}</div>
-          <div style="width:20px;height:${h}px;background:${barColor(r.cr,r.goal)};border-radius:3px 3px 0 0;"></div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;">
+    const h = Math.max(2, (r.cr/maxCr)*110);
+    const label = isDay ? r.key.slice(8,10) : r.key.slice(5);
+    const goalCol = !isDay ? `<div style="display:flex;flex-direction:column;align-items:center;">
           <div style="font-family:var(--mono);font-size:10px;color:#6ab0ff;margin-bottom:4px;">${pct(r.goal)}</div>
-          <div style="width:20px;height:${goalH}px;border:2px dashed #6ab0ff;border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box;"></div>
+          <div style="width:${barW}px;height:${Math.max(2,(r.goal/maxCr)*110)}px;border:2px dashed #6ab0ff;border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box;"></div>
+        </div>` : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+      <div style="display:flex;align-items:flex-end;gap:${isDay?2:5}px;height:110px;">
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          ${isDay?'':`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cr<r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${pct(r.cr)}</div>`}
+          <div title="${pct(r.cr)}" style="width:${barW}px;height:${h}px;background:${barColor(r.cr,r.goal)};border-radius:2px 2px 0 0;"></div>
         </div>
+        ${goalCol}
       </div>
-      <div style="font-family:var(--mono);font-size:10.5px;color:var(--muted);">${r.ym.slice(5)}</div>
+      <div style="font-family:var(--mono);font-size:${isDay?9.5:10.5}px;color:var(--muted);">${label}</div>
     </div>`;
   }).join('');
   const g = computeGoalGap(v);
   const monthlyCr = computeMonthlyCR(v);
-  const lastCr = monthlyCr[monthlyCr.length-1].cr, prevCr = monthlyCr[monthlyCr.length-2].cr;
+  const lastCr = monthlyCr[monthlyCr.length-1].cr, prevCr = monthlyCr[monthlyCr.length-2] ? monthlyCr[monthlyCr.length-2].cr : lastCr;
   const crTrendCloser = Math.abs(lastCr - g.crGoal) < Math.abs(prevCr - g.crGoal);
   return `
   <div class="panel">
-    <h2>Xu hướng CR DAU→Lead theo tháng — ${VERTICALS[v].name}</h2>
+    <h2>Xu hướng CR DAU→Lead theo tháng — ${VERTICALS[v].name}${trendChip('cr')}</h2>
     <div class="desc">
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế &nbsp;
-      <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target tháng đó.
+      <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang)':' tháng đó'}.
     </div>
-    <div style="display:flex;align-items:flex-end;gap:14px;padding:8px 4px 0;">${cols}</div>
+    <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:8px 4px 0;overflow-x:${isDay?'auto':'visible'};">
+      ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>`:''}
+      ${cols}
+    </div>
     <div class="note-box" style="margin-top:14px;">${gapSentence('CR to Lead (30 ngày gần nhất)', pct(g.cr), pct(g.crGoal), g.crGapPct, false, crTrendCloser)}</div>
   </div>`;
 }
 
 function computeMonthlyCPL(v){
-  const months = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07"];
+  const months = Object.keys(MONTHLY_SUMMARY).sort();
   return months.map(ym=>{
     const campaigns = (MONTH_CAMPAIGNS[ym] && MONTH_CAMPAIGNS[ym][v]) || [];
     let spend = 0, lead = 0;
@@ -953,44 +986,70 @@ function computeMonthlyCPL(v){
       const s = SPEND_BY_MONTH[ym] && SPEND_BY_MONTH[ym][name];
       if (s && s.spend && s.lead) { spend += s.spend; lead += s.lead; }
     });
-    return { ym, cpl: lead > 0 ? spend / lead : null };
+    return { key: ym, cpl: lead > 0 ? spend / lead : null };
+  });
+}
+// Daily CPL reuses the SAME eligible-campaign list as the 30-day Average CPL card
+// (CAMPAIGNS[v], dau>=100 over the full 30-day window) — just re-summed per day from
+// SPEND_BY_DAY, so the day-view total lines up with the "Average CPL" card overall.
+function computeDailyCPL(v){
+  const days = Object.keys(SPEND_BY_DAY).sort();
+  const eligible = (CAMPAIGNS[v] || []).filter(r=>r[2]>=100).map(r=>r[0])
+    .filter(name => !EXCLUDED_CAMPAIGNS.has(name) && !EXCLUDED_NAME_PATTERN.test(name));
+  return days.map(d=>{
+    let spend = 0, lead = 0;
+    eligible.forEach(name=>{
+      const s = SPEND_BY_DAY[d] && SPEND_BY_DAY[d][name];
+      if (s && s.spend && s.lead) { spend += s.spend; lead += s.lead; }
+    });
+    return { key: d, cpl: lead > 0 ? spend / lead : null };
   });
 }
 
 function renderMonthlyCPLTrend(v){
-  const rows = computeMonthlyCPL(v).map(r=>({...r, goal: monthlyGoal(v, r.ym).cpl}));
+  const isDay = trendViewMode.cpl === 'day';
+  const rawRows = isDay ? computeDailyCPL(v) : computeMonthlyCPL(v);
+  const rows = rawRows.map(r=>({...r, goal: monthlyGoal(v, isDay ? r.key.slice(0,7) : r.key).cpl}));
   const valid = rows.filter(r=>r.cpl != null).map(r=>r.cpl);
   const maxCpl = Math.max(...valid, ...rows.map(r=>r.goal||0), 1);
   const barColor = (cpl, goal)=> cpl > goal*1.5 ? '#FF2636' : cpl > goal ? '#FFBA00' : '#2ecc71';
+  const barW = isDay ? 8 : 20, gap = isDay ? 3 : 14;
+  const lastGoal = rows.length ? rows[rows.length-1].goal : null;
+  const goalLine = isDay && lastGoal!=null ? Math.max(0, Math.min(110, 110 - (lastGoal/maxCpl)*110)) : null;
   const cols = rows.map(r=>{
-    const h = r.cpl != null ? Math.max(3, (r.cpl/maxCpl)*110) : 0;
-    const goalH = r.goal != null ? Math.max(3, (r.goal/maxCpl)*110) : null;
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
-      <div style="display:flex;align-items:flex-end;gap:5px;height:110px;">
-        <div style="display:flex;flex-direction:column;align-items:center;">
-          <div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>
-          <div style="width:20px;height:${h}px;background:${r.cpl!=null?barColor(r.cpl,r.goal||Infinity):'transparent'};border:${r.cpl!=null?'none':'1px dashed var(--border)'};border-radius:3px 3px 0 0;"></div>
-        </div>
-        ${r.goal!=null?`<div style="display:flex;flex-direction:column;align-items:center;">
+    const h = r.cpl != null ? Math.max(2, (r.cpl/maxCpl)*110) : 0;
+    const goalH = r.goal != null ? Math.max(2, (r.goal/maxCpl)*110) : null;
+    const label = isDay ? r.key.slice(8,10) : r.key.slice(5);
+    const goalCol = (!isDay && r.goal!=null) ? `<div style="display:flex;flex-direction:column;align-items:center;">
           <div style="font-family:var(--mono);font-size:10px;color:#6ab0ff;margin-bottom:4px;">${fmtVND(r.goal)}</div>
-          <div style="width:20px;height:${goalH}px;border:2px dashed #6ab0ff;border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box;"></div>
-        </div>`:''}
+          <div style="width:${barW}px;height:${goalH}px;border:2px dashed #6ab0ff;border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box;"></div>
+        </div>` : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+      <div style="display:flex;align-items:flex-end;gap:${isDay?2:5}px;height:110px;">
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          ${isDay?'':`<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:${r.cpl!=null&&r.goal!=null&&r.cpl>r.goal?'#ff6b76':'var(--muted)'};margin-bottom:4px;">${r.cpl!=null?fmtVND(r.cpl):'—'}</div>`}
+          <div title="${r.cpl!=null?fmtVND(r.cpl):'—'}" style="width:${barW}px;height:${h}px;background:${r.cpl!=null?barColor(r.cpl,r.goal||Infinity):'transparent'};border:${r.cpl!=null?'none':'1px dashed var(--border)'};border-radius:2px 2px 0 0;"></div>
+        </div>
+        ${goalCol}
       </div>
-      <div style="font-family:var(--mono);font-size:10.5px;color:var(--muted);">${r.ym.slice(5)}</div>
+      <div style="font-family:var(--mono);font-size:${isDay?9.5:10.5}px;color:var(--muted);">${label}</div>
     </div>`;
   }).join('');
   const g = computeGoalGap(v);
   const monthlyCpl = computeMonthlyCPL(v);
-  const lastCpl = monthlyCpl[monthlyCpl.length-1].cpl, prevCpl = monthlyCpl[monthlyCpl.length-2].cpl;
+  const lastCpl = monthlyCpl[monthlyCpl.length-1].cpl, prevCpl = monthlyCpl[monthlyCpl.length-2] ? monthlyCpl[monthlyCpl.length-2].cpl : null;
   const cplTrendCloser = (lastCpl!=null && prevCpl!=null) ? Math.abs(lastCpl - g.cplGoal) < Math.abs(prevCpl - g.cplGoal) : null;
   return `
   <div class="panel">
-    <h2>Xu hướng Cost per Lead theo tháng — ${VERTICALS[v].name}</h2>
+    <h2>Xu hướng Cost per Lead theo tháng — ${VERTICALS[v].name}${trendChip('cpl')}</h2>
     <div class="desc">
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế &nbsp;
-      <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target tháng đó.
+      <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang)':' tháng đó'}.
     </div>
-    <div style="display:flex;align-items:flex-end;gap:14px;padding:8px 4px 0;">${cols}</div>
+    <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:8px 4px 0;overflow-x:${isDay?'auto':'visible'};">
+      ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>`:''}
+      ${cols}
+    </div>
     <div class="note-box" style="margin-top:14px;">${gapSentence('CPL (30 ngày gần nhất)', g.cpl!=null?fmtVND(g.cpl):'—', fmtVND(g.cplGoal), g.cplGapPct, true, cplTrendCloser)}</div>
   </div>`;
 }
@@ -1404,6 +1463,9 @@ function render(){
   sb.addEventListener('input', (e)=>{ filterText=e.target.value; render(); setTimeout(()=>{ const el=document.getElementById('searchBox'); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length);} },0); });
   document.getElementById('channelFilter').addEventListener('change', (e)=>{ filterChannel=e.target.value; render(); });
   document.querySelectorAll('tbody tr').forEach(tr=>{ tr.addEventListener('click', ()=>{ openDrawer(decodeURIComponent(tr.dataset.campaign), v); }); });
+  document.querySelectorAll('.chip-opt').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ trendViewMode[chip.dataset.metric] = chip.dataset.mode; render(); });
+  });
 }
 
 document.getElementById('monthFilter').addEventListener('change', (e)=>{ selectedMonth = e.target.value; render(); });

@@ -97,11 +97,50 @@ HAVING spend_vnd > 0
 """)
 print(f"  {len(spend_rows)} rows")
 
+print("Querying BigQuery (daily funnel, last 30 days — for day-view trend charts)...")
+daily_funnel_rows = run("""
+WITH base AS (
+  SELECT v.date AS date, v.clientId AS clientId, v.channelGrouping AS channelGrouping, cat.category_id AS category_id,
+         cat.adview_count AS adview_count, cat.lead_count AS lead_count
+  FROM `chotot-dwh.chotot_data.traffic_visit_detail` v, UNNEST(v.category) cat
+  WHERE v.date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND CURRENT_DATE()
+    AND v.channelGrouping IN ('Paid Search','Display')
+    AND v.is_bot IS NOT TRUE
+),
+mapped AS (
+  SELECT b.*, d.metric_layer_vertical AS vertical
+  FROM base b LEFT JOIN `chotot-dwh.dim.d_category` d ON SAFE_CAST(b.category_id AS INT64) = d.category
+)
+SELECT date AS date, vertical AS vertical, channelGrouping AS channelGrouping,
+  COUNT(DISTINCT clientId) AS dau,
+  COUNT(DISTINCT CASE WHEN adview_count > 0 THEN clientId END) AS dau_w_adview,
+  COUNT(DISTINCT CASE WHEN lead_count > 0 THEN clientId END) AS dau_w_lead,
+  SUM(lead_count) AS total_lead
+FROM mapped WHERE vertical IS NOT NULL
+GROUP BY date, vertical, channelGrouping
+""")
+print(f"  {len(daily_funnel_rows)} rows")
+
+print("Querying BigQuery (daily spend, last 30 days — for day-view CPL chart)...")
+daily_spend_rows = run("""
+SELECT date AS date, campaign AS campaign, SUM(lead_daily) AS total_lead, SUM(spend_vnd) AS spend_vnd
+FROM `chotot-dwh.ct_digital.kiet_digital_campaign_daily`
+WHERE date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND CURRENT_DATE()
+GROUP BY date, campaign
+HAVING spend_vnd > 0
+""")
+print(f"  {len(daily_spend_rows)} rows")
+
 # ---- sanity checks: never push obviously broken data ----
 if len(funnel_rows) < 4 or len(campaign_rows) < 50 or len(spend_rows) < 20:
     raise SystemExit(
         f"Sanity check failed (funnel={len(funnel_rows)}, campaigns={len(campaign_rows)}, "
         f"spend={len(spend_rows)}) — refusing to overwrite live-snapshot.json"
+    )
+if len(daily_funnel_rows) < 30 or len(daily_spend_rows) < 20:
+    raise SystemExit(
+        f"Daily sanity check failed (daily_funnel={len(daily_funnel_rows)}, "
+        f"daily_spend={len(daily_spend_rows)}) — refusing to overwrite live-snapshot.json"
     )
 
 # ---- assemble summary ----
@@ -144,12 +183,41 @@ for r in spend_rows:
         "spend": round(r['spend_vnd']),
     }
 
+# ---- assemble daily summary (date -> vertical -> channel -> funnel metrics) ----
+daily_summary = {}
+for r in daily_funnel_rows:
+    v, ch = r['vertical'], r['channelGrouping']
+    if v not in VERTICALS:
+        continue
+    d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
+    daily_summary.setdefault(d, {vv: {
+        "Display": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
+        "Paid Search": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
+    } for vv in VERTICALS})
+    daily_summary[d][v][ch] = {
+        "dau": int(r['dau']), "adview": int(r['dau_w_adview']),
+        "lead": int(r['dau_w_lead']), "totalLead": int(r['total_lead'] or 0),
+    }
+
+# ---- assemble daily spend (date -> campaign -> {spend, lead}) ----
+spend_by_day = {}
+for r in daily_spend_rows:
+    if r['spend_vnd'] is None:
+        continue
+    d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
+    spend_by_day.setdefault(d, {})[r['campaign']] = {
+        "lead": int(r['total_lead']) if r['total_lead'] is not None else 0,
+        "spend": round(r['spend_vnd']),
+    }
+
 out = {
     "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "window_days": 30,
     "summary": summary,
     "campaigns": campaigns,
     "spend_last30": spend_last30,
+    "daily_summary": daily_summary,
+    "spend_by_day": spend_by_day,
 }
 
 os.makedirs(os.path.dirname(DATA_JSON), exist_ok=True)
