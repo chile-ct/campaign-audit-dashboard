@@ -188,44 +188,61 @@ const VERTICALS = {
 
 /* Optimization goals set by mkt-director — target riêng theo từng tháng (FC2 2026 plan).
    Ưu tiên tối ưu theo CPL + %CR to lead (dùng làm tiêu chí root-cause/gap-analysis chính).
-   Các cost-per khác (CP DAU/DwL/MAU/MwL) chỉ note lại để tham khảo, chưa dùng để tính pass/fail. */
+   Các cost-per khác (CP DAU/DwL/MAU/MwL) chỉ note lại để tham khảo, chưa dùng để tính pass/fail.
+   H1 (Jan-Jun) giữ nguyên target riêng từng tháng (theo actuals/pacing plan cũ).
+   H2 (Jul-Dec) dùng CHUNG một số target H2 (FC2) duy nhất cho cả 6 tháng — theo yêu cầu thống
+   nhất, thay vì mỗi tháng một target khác nhau như trước. Số H2 lấy từ cột "H2 (FC2)" trong deck
+   "Growth Direction 2026" (section 04, Digital campaigns driver 1, bảng d1_vert). */
 const GOALS_MONTHLY = {
   pty: {
-    cr:  {"2026-01":0.118,"2026-02":0.109,"2026-03":0.122,"2026-04":0.112,"2026-05":0.115,"2026-06":0.107,"2026-07":0.112,"2026-08":0.113,"2026-09":0.113,"2026-10":0.118,"2026-11":0.121,"2026-12":0.130},
-    cpl: {"2026-01":2141,"2026-02":1966,"2026-03":2126,"2026-04":2641,"2026-05":2760,"2026-06":3377,"2026-07":3576,"2026-08":3586,"2026-09":3567,"2026-10":2782,"2026-11":1833,"2026-12":962}
+    cr:  {"2026-01":0.118,"2026-02":0.109,"2026-03":0.122,"2026-04":0.112,"2026-05":0.115,"2026-06":0.107},
+    cpl: {"2026-01":2141,"2026-02":1966,"2026-03":2126,"2026-04":2641,"2026-05":2760,"2026-06":3377}
   },
   jobs: {
-    cr:  {"2026-01":0.187,"2026-02":0.162,"2026-03":0.148,"2026-04":0.139,"2026-05":0.152,"2026-06":0.162,"2026-07":0.168,"2026-08":0.163,"2026-09":0.168,"2026-10":0.178,"2026-11":0.178,"2026-12":0.186},
-    cpl: {"2026-01":700, "2026-02":711, "2026-03":2157,"2026-04":2571,"2026-05":2596,"2026-06":3607,"2026-07":2949,"2026-08":3006,"2026-09":2623,"2026-10":2114,"2026-11":2078,"2026-12":1486}
+    cr:  {"2026-01":0.187,"2026-02":0.162,"2026-03":0.148,"2026-04":0.139,"2026-05":0.152,"2026-06":0.162},
+    cpl: {"2026-01":700, "2026-02":711, "2026-03":2157,"2026-04":2571,"2026-05":2596,"2026-06":3607}
   },
   veh: {
-    cr:  {"2026-01":0.147,"2026-02":0.104,"2026-03":0.084,"2026-04":0.069,"2026-05":0.072,"2026-06":0.072,"2026-07":0.074,"2026-08":0.075,"2026-09":0.073,"2026-10":0.079,"2026-11":0.076,"2026-12":0.095},
-    cpl: {"2026-01":null,"2026-02":481, "2026-03":703, "2026-04":472, "2026-05":450, "2026-06":1181,"2026-07":783, "2026-08":1090,"2026-09":936, "2026-10":850, "2026-11":737, "2026-12":395}
+    cr:  {"2026-01":0.147,"2026-02":0.104,"2026-03":0.084,"2026-04":0.069,"2026-05":0.072,"2026-06":0.072},
+    cpl: {"2026-01":null,"2026-02":481, "2026-03":703, "2026-04":472, "2026-05":450, "2026-06":1181}
   },
   gds: {
-    cr:  {"2026-01":0.174,"2026-02":0.173,"2026-03":0.160,"2026-04":0.153,"2026-05":0.142,"2026-06":0.111,"2026-07":0.138,"2026-08":0.134,"2026-09":0.134,"2026-10":0.155,"2026-11":0.154,"2026-12":0.182},
-    cpl: {"2026-01":1959,"2026-02":1922,"2026-03":1181,"2026-04":1133,"2026-05":1263,"2026-06":2049,"2026-07":2091,"2026-08":2307,"2026-09":2286,"2026-10":1288,"2026-11":1060,"2026-12":462}
+    cr:  {"2026-01":0.174,"2026-02":0.173,"2026-03":0.160,"2026-04":0.153,"2026-05":0.142,"2026-06":0.111},
+    cpl: {"2026-01":1959,"2026-02":1922,"2026-03":1181,"2026-04":1133,"2026-05":1263,"2026-06":2049}
   }
+};
+/* Single blended target for the whole H2 (Jul-Dec) — matches the deck's "H2 (FC2)" column
+   exactly (cpl/cp_dau/cp_dwl/cp_mau/cp_mwl); cr recomputed precisely from the deck's underlying
+   monthly arrays (sum dauwlead / sum daus, Jul-Dec) same method used for the FY figures below. */
+const H2_GOALS = {
+  pty:  { cpl: 2913, cr: 0.1162, cp_dau: 1108, cp_dwl: 9529, cp_mau: 1660, cp_mwl: 13685 },
+  jobs: { cpl: 2380, cr: 0.1739, cp_dau: 1314, cp_dwl: 7557, cp_mau: 2087, cp_mwl: 11737 },
+  veh:  { cpl: 821,  cr: 0.0777, cp_dau: 418,  cp_dwl: 5379, cp_mau: 648,  cp_mwl: 8828  },
+  gds:  { cpl: 1585, cr: 0.1476, cp_dau: 583,  cp_dwl: 3952, cp_mau: 1106, cp_mwl: 7709  }
 };
 /* FY (FC2) target fallback — matches the "Growth Direction 2026" deck's Digital Campaigns FY
    column (section 04, driver 1), volume-weighted across the year (e.g. cpl = full-year budget
    / full-year leads), NOT a simple average of the 12 GOALS_MONTHLY values — those two methods
-   diverge whenever monthly volume varies (which it does, heavily, toward H2). Used for
-   YTD/last30 blends and as a safety default when a specific month isn't in GOALS_MONTHLY.
-   cr values are computed the same way (sum dauwlead / sum daus across all 12 months) directly
-   from the deck's underlying monthly arrays, which is more precise than the deck's own rounded
-   1-decimal % display. Re-derive from the deck if its FY numbers change. */
+   diverge whenever monthly volume varies (which it does, heavily, toward H2). Used for YTD
+   blends and as the H1 fallback for cp_dau/cp_dwl/cp_mau/cp_mwl (those don't have their own H1
+   monthly breakdown). cr values computed the same way (sum dauwlead / sum daus across all 12
+   months), more precise than the deck's rounded 1-decimal % display. */
 const GOALS = {
   pty:  { cpl: 2754, cr: 0.1153, cp_dau: 1051, cp_dwl: 9117, cp_mau: 1575, cp_mwl: 13065 },
   jobs: { cpl: 2296, cr: 0.1647, cp_dau: 1195, cp_dwl: 7253, cp_mau: 1863, cp_mwl: 11055 },
   veh:  { cpl: 718,  cr: 0.0794, cp_dau: 354,  cp_dwl: 4458, cp_mau: 620,  cp_mwl: 7947  },
   gds:  { cpl: 1570, cr: 0.1484, cp_dau: 589,  cp_dwl: 3966, cp_mau: 1177, cp_mwl: 7789  }
 };
+function isH2(ym){ return ym >= "2026-07" && ym <= "2026-12"; }
 function monthlyGoal(v, ym){
   const m = GOALS_MONTHLY[v];
+  if (isH2(ym)){
+    const h2 = H2_GOALS[v];
+    return { cr: h2.cr, cpl: h2.cpl, cp_dau: h2.cp_dau, cp_dwl: h2.cp_dwl, cp_mau: h2.cp_mau, cp_mwl: h2.cp_mwl };
+  }
   const cr = m && m.cr[ym] != null ? m.cr[ym] : GOALS[v].cr;
   const cpl = m && m.cpl[ym] != null ? m.cpl[ym] : GOALS[v].cpl;
-  return { cr, cpl };
+  return { cr, cpl, cp_dau: GOALS[v].cp_dau, cp_dwl: GOALS[v].cp_dwl, cp_mau: GOALS[v].cp_mau, cp_mwl: GOALS[v].cp_mwl };
 }
 function resolvedGoal(v){
   if (selectedMonth === 'last30') return monthlyGoal(v, '2026-07');
@@ -233,7 +250,8 @@ function resolvedGoal(v){
     const months = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07"];
     const goals = months.map(ym=>monthlyGoal(v, ym));
     const crs = goals.map(g=>g.cr), cpls = goals.filter(g=>g.cpl!=null).map(g=>g.cpl);
-    return { cr: crs.reduce((a,b)=>a+b,0)/crs.length, cpl: cpls.length ? cpls.reduce((a,b)=>a+b,0)/cpls.length : GOALS[v].cpl };
+    return { cr: crs.reduce((a,b)=>a+b,0)/crs.length, cpl: cpls.length ? cpls.reduce((a,b)=>a+b,0)/cpls.length : GOALS[v].cpl,
+      cp_dau: GOALS[v].cp_dau, cp_dwl: GOALS[v].cp_dwl, cp_mau: GOALS[v].cp_mau, cp_mwl: GOALS[v].cp_mwl };
   }
   return monthlyGoal(v, selectedMonth);
 }
@@ -845,19 +863,19 @@ function renderCards(v){
   const cplGapPct = (avgCPL != null && goal.cpl) ? (avgCPL - goal.cpl) / goal.cpl : null;
   const gapColor = cplGapPct == null ? 'var(--muted)' : (cplGapPct <= 0 ? '#2ecc71' : (cplGapPct < 0.2 ? '#FFBA00' : '#FF2636'));
   const gapTxt = cplGapPct == null ? 'chưa đủ data spend' : `${((avgCPL/goal.cpl)*100).toFixed(1)}% of goal`;
-  const dwlGoal = GOALS[v].cp_dwl;
+  const dwlGoal = goal.cp_dwl;
   const dwlGapPct = (avgCostPerDwL != null && dwlGoal) ? (avgCostPerDwL - dwlGoal) / dwlGoal : null;
   const dwlGapColor = dwlGapPct == null ? 'var(--muted)' : (dwlGapPct <= 0 ? '#2ecc71' : (dwlGapPct < 0.2 ? '#FFBA00' : '#FF2636'));
   const dwlGapTxt = dwlGapPct == null ? 'chưa đủ data spend' : `${((avgCostPerDwL/dwlGoal)*100).toFixed(1)}% of goal`;
   return `
   <div class="grid-cards">
-    <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub" style="color:var(--muted);">CP DAU ${fmtVND(GOALS[v].cp_dau)}</div><div class="sub" style="color:var(--muted);">CP MAU ${fmtVND(GOALS[v].cp_mau)}</div></div>
+    <div class="card"><div class="label">Total DAU</div><div class="value">${fmt(c.dau)}</div><div class="sub" style="color:var(--muted);">CP DAU ${fmtVND(goal.cp_dau)}</div><div class="sub" style="color:var(--muted);">CP MAU ${fmtVND(goal.cp_mau)}</div></div>
     <div class="card"><div class="label">DAU w/ Adview</div><div class="value">${fmt(c.adview)}</div><div class="sub">${pct(c.adview/c.dau)} of DAU</div></div>
     <div class="card"><div class="label">DAU w/ Lead</div><div class="value">${fmt(c.lead)}</div><div class="sub">${pct(c.cr)} CR DAU→Lead</div></div>
     <div class="card warn">
       <div class="label">Avg. cost per DwL</div><div class="value">${avgCostPerDwL!=null?fmtVND(avgCostPerDwL):'—'}</div>
       <div class="sub" style="color:${dwlGapColor};">${dwlGapTxt}</div>
-      <div class="sub" style="color:var(--muted);">CP DwL ${fmtVND(GOALS[v].cp_dwl)}</div><div class="sub" style="color:var(--muted);">CP MwL ${fmtVND(GOALS[v].cp_mwl)}</div>
+      <div class="sub" style="color:var(--muted);">CP DwL ${fmtVND(goal.cp_dwl)}</div><div class="sub" style="color:var(--muted);">CP MwL ${fmtVND(goal.cp_mwl)}</div>
     </div>
     <div class="card"><div class="label">Total Lead</div><div class="value">${fmt(c.totalLead)}</div><div class="sub">Lead/DAU = ${c.leadPerDau.toFixed(2)}</div></div>
     <div class="card warn" id="cardAvgCPL">
