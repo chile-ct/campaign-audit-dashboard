@@ -7,6 +7,9 @@ Refreshes:
      only the current month is re-queried each run (cheap, ~1 month of data); past
      months are already finalized and are carried forward untouched. When a new
      calendar month starts, its key is simply added on top — nothing is deleted.
+  3. Day-level history since DAILY_HISTORY_START (data/daily-snapshot.json) —
+     accumulates forever; each run only queries the days not yet on file (usually
+     just 1 day), never re-fetching or dropping already-recorded days.
 The "save" metric (DAU w/ Save) is NOT re-queried daily (source query is ~28GB) —
 it is carried forward from the previous snapshot.
 """
@@ -16,6 +19,8 @@ from google.cloud import bigquery
 PROJECT = "chotot-dwh"
 DATA_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'live-snapshot.json')
 MONTHLY_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'monthly-snapshot.json')
+DAILY_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'daily-snapshot.json')
+DAILY_HISTORY_START = datetime.date(2026, 1, 1)  # matches the monthly data's start
 VERTICALS = ['pty', 'veh', 'gds', 'jobs']
 
 client = bigquery.Client(project=PROJECT)
@@ -97,50 +102,11 @@ HAVING spend_vnd > 0
 """)
 print(f"  {len(spend_rows)} rows")
 
-print("Querying BigQuery (daily funnel, last 30 days — for day-view trend charts)...")
-daily_funnel_rows = run("""
-WITH base AS (
-  SELECT v.date AS date, v.clientId AS clientId, v.channelGrouping AS channelGrouping, cat.category_id AS category_id,
-         cat.adview_count AS adview_count, cat.lead_count AS lead_count
-  FROM `chotot-dwh.chotot_data.traffic_visit_detail` v, UNNEST(v.category) cat
-  WHERE v.date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND CURRENT_DATE()
-    AND v.channelGrouping IN ('Paid Search','Display')
-    AND v.is_bot IS NOT TRUE
-),
-mapped AS (
-  SELECT b.*, d.metric_layer_vertical AS vertical
-  FROM base b LEFT JOIN `chotot-dwh.dim.d_category` d ON SAFE_CAST(b.category_id AS INT64) = d.category
-)
-SELECT date AS date, vertical AS vertical, channelGrouping AS channelGrouping,
-  COUNT(DISTINCT clientId) AS dau,
-  COUNT(DISTINCT CASE WHEN adview_count > 0 THEN clientId END) AS dau_w_adview,
-  COUNT(DISTINCT CASE WHEN lead_count > 0 THEN clientId END) AS dau_w_lead,
-  SUM(lead_count) AS total_lead
-FROM mapped WHERE vertical IS NOT NULL
-GROUP BY date, vertical, channelGrouping
-""")
-print(f"  {len(daily_funnel_rows)} rows")
-
-print("Querying BigQuery (daily spend, last 30 days — for day-view CPL chart)...")
-daily_spend_rows = run("""
-SELECT date AS date, campaign AS campaign, SUM(lead_daily) AS total_lead, SUM(spend_vnd) AS spend_vnd
-FROM `chotot-dwh.ct_digital.kiet_digital_campaign_daily`
-WHERE date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND CURRENT_DATE()
-GROUP BY date, campaign
-HAVING spend_vnd > 0
-""")
-print(f"  {len(daily_spend_rows)} rows")
-
 # ---- sanity checks: never push obviously broken data ----
 if len(funnel_rows) < 4 or len(campaign_rows) < 50 or len(spend_rows) < 20:
     raise SystemExit(
         f"Sanity check failed (funnel={len(funnel_rows)}, campaigns={len(campaign_rows)}, "
         f"spend={len(spend_rows)}) — refusing to overwrite live-snapshot.json"
-    )
-if len(daily_funnel_rows) < 30 or len(daily_spend_rows) < 20:
-    raise SystemExit(
-        f"Daily sanity check failed (daily_funnel={len(daily_funnel_rows)}, "
-        f"daily_spend={len(daily_spend_rows)}) — refusing to overwrite live-snapshot.json"
     )
 
 # ---- assemble summary ----
@@ -183,41 +149,12 @@ for r in spend_rows:
         "spend": round(r['spend_vnd']),
     }
 
-# ---- assemble daily summary (date -> vertical -> channel -> funnel metrics) ----
-daily_summary = {}
-for r in daily_funnel_rows:
-    v, ch = r['vertical'], r['channelGrouping']
-    if v not in VERTICALS:
-        continue
-    d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
-    daily_summary.setdefault(d, {vv: {
-        "Display": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
-        "Paid Search": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
-    } for vv in VERTICALS})
-    daily_summary[d][v][ch] = {
-        "dau": int(r['dau']), "adview": int(r['dau_w_adview']),
-        "lead": int(r['dau_w_lead']), "totalLead": int(r['total_lead'] or 0),
-    }
-
-# ---- assemble daily spend (date -> campaign -> {spend, lead}) ----
-spend_by_day = {}
-for r in daily_spend_rows:
-    if r['spend_vnd'] is None:
-        continue
-    d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
-    spend_by_day.setdefault(d, {})[r['campaign']] = {
-        "lead": int(r['total_lead']) if r['total_lead'] is not None else 0,
-        "spend": round(r['spend_vnd']),
-    }
-
 out = {
     "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "window_days": 30,
     "summary": summary,
     "campaigns": campaigns,
     "spend_last30": spend_last30,
-    "daily_summary": daily_summary,
-    "spend_by_day": spend_by_day,
 }
 
 os.makedirs(os.path.dirname(DATA_JSON), exist_ok=True)
@@ -363,3 +300,100 @@ with open(MONTHLY_JSON, 'w') as f:
 month_dau = sum(month_summary_entry[v][ch]['dau'] for v in VERTICALS for ch in ("Display", "Paid Search"))
 print(f"OK data/monthly-snapshot.json updated — {current_ym} MTD DAU across verticals: {month_dau:,} "
       f"(months on file: {sorted(monthly['monthly_summary'].keys())})")
+
+# ==========================================================================
+# DAILY SNAPSHOT — accumulates day-level history forever (unlike the rolling
+# 30-day live-snapshot.json, days are never dropped once recorded). Each run
+# only queries the days not yet on file — from the day after the last
+# recorded date through today — so the daily cost stays tiny (usually just
+# 1 day) after the one-time backfill to DAILY_HISTORY_START.
+# ==========================================================================
+print(f"Loading previous daily snapshot ({DAILY_JSON})...")
+daily = {}
+if os.path.exists(DAILY_JSON):
+    with open(DAILY_JSON) as f:
+        daily = json.load(f)
+daily.setdefault('daily_summary', {})
+daily.setdefault('spend_by_day', {})
+
+existing_days = sorted(daily['daily_summary'].keys())
+query_start = (datetime.date.fromisoformat(existing_days[-1]) + datetime.timedelta(days=1)) if existing_days else DAILY_HISTORY_START
+query_end = today
+
+if query_start > query_end:
+    print(f"Daily snapshot already up to date through {existing_days[-1]} — skipping daily query.")
+else:
+    print(f"Querying BigQuery (daily funnel, {query_start} → {query_end})...")
+    daily_funnel_rows = run(f"""
+    WITH base AS (
+      SELECT v.date AS date, v.clientId AS clientId, v.channelGrouping AS channelGrouping, cat.category_id AS category_id,
+             cat.adview_count AS adview_count, cat.lead_count AS lead_count
+      FROM `chotot-dwh.chotot_data.traffic_visit_detail` v, UNNEST(v.category) cat
+      WHERE v.date BETWEEN '{query_start.isoformat()}' AND '{query_end.isoformat()}'
+        AND v.channelGrouping IN ('Paid Search','Display')
+        AND v.is_bot IS NOT TRUE
+    ),
+    mapped AS (
+      SELECT b.*, d.metric_layer_vertical AS vertical
+      FROM base b LEFT JOIN `chotot-dwh.dim.d_category` d ON SAFE_CAST(b.category_id AS INT64) = d.category
+    )
+    SELECT date AS date, vertical AS vertical, channelGrouping AS channelGrouping,
+      COUNT(DISTINCT clientId) AS dau,
+      COUNT(DISTINCT CASE WHEN adview_count > 0 THEN clientId END) AS dau_w_adview,
+      COUNT(DISTINCT CASE WHEN lead_count > 0 THEN clientId END) AS dau_w_lead,
+      SUM(lead_count) AS total_lead
+    FROM mapped WHERE vertical IS NOT NULL
+    GROUP BY date, vertical, channelGrouping
+    """)
+    print(f"  {len(daily_funnel_rows)} rows")
+
+    print(f"Querying BigQuery (daily spend, {query_start} → {query_end})...")
+    daily_spend_rows = run(f"""
+    SELECT date AS date, campaign AS campaign, SUM(lead_daily) AS total_lead, SUM(spend_vnd) AS spend_vnd
+    FROM `chotot-dwh.ct_digital.kiet_digital_campaign_daily`
+    WHERE date BETWEEN '{query_start.isoformat()}' AND '{query_end.isoformat()}'
+    GROUP BY date, campaign
+    HAVING spend_vnd > 0
+    """)
+    print(f"  {len(daily_spend_rows)} rows")
+
+    if len(daily_funnel_rows) < 1:
+        raise SystemExit(
+            f"Daily sanity check failed (daily_funnel=0 rows for {query_start}→{query_end}) "
+            f"— refusing to update daily-snapshot.json"
+        )
+
+    for r in daily_funnel_rows:
+        v, ch = r['vertical'], r['channelGrouping']
+        if v not in VERTICALS:
+            continue
+        d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
+        daily['daily_summary'].setdefault(d, {vv: {
+            "Display": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
+            "Paid Search": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
+        } for vv in VERTICALS})
+        daily['daily_summary'][d][v][ch] = {
+            "dau": int(r['dau']), "adview": int(r['dau_w_adview']),
+            "lead": int(r['dau_w_lead']), "totalLead": int(r['total_lead'] or 0),
+        }
+
+    for r in daily_spend_rows:
+        if r['spend_vnd'] is None:
+            continue
+        d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
+        daily['spend_by_day'].setdefault(d, {})[r['campaign']] = {
+            "lead": int(r['total_lead']) if r['total_lead'] is not None else 0,
+            "spend": round(r['spend_vnd']),
+        }
+
+    daily['generated_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    daily['last_day'] = query_end.isoformat()
+    daily['history_start'] = DAILY_HISTORY_START.isoformat()
+
+    os.makedirs(os.path.dirname(DAILY_JSON), exist_ok=True)
+    with open(DAILY_JSON, 'w') as f:
+        json.dump(daily, f)
+
+    all_days = sorted(daily['daily_summary'].keys())
+    print(f"OK data/daily-snapshot.json updated — {len(all_days)} days on file "
+          f"({all_days[0]} → {all_days[-1]})")

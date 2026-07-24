@@ -553,10 +553,12 @@ const FLAGS = {
 let SUMMARY = SNAPSHOT_SUMMARY;
 let CAMPAIGNS = SNAPSHOT_CAMPAIGNS;
 let lastRefreshedAt = null;
-// Day-level breakdown of the rolling 30-day window, for the trend charts' "theo ngày" view.
-// Empty until the first data/live-snapshot.json fetch merges it in (no build-time fallback).
+// Day-level history for the trend charts' "theo ngày" view — accumulates forever from
+// data/daily-snapshot.json (see scripts/update_snapshot.py), not just a rolling window.
+// Empty until the first fetch merges it in (no build-time fallback).
 let DAILY_SUMMARY = {};
 let SPEND_BY_DAY = {};
+let dailyHistoryStart = null;
 
 function bridgeAvailable(){
   return !!(window.cowork && typeof window.cowork.callMcpTool === 'function');
@@ -689,8 +691,6 @@ async function loadStaticSnapshot(isManualClick){
     SUMMARY = data.summary;
     CAMPAIGNS = data.campaigns;
     Object.keys(data.spend_last30 || {}).forEach(k => { SPEND_LAST30[k] = data.spend_last30[k]; });
-    if (data.daily_summary) DAILY_SUMMARY = data.daily_summary;
-    if (data.spend_by_day) SPEND_BY_DAY = data.spend_by_day;
     lastRefreshedAt = new Date(data.generated_at);
   } catch(err){
     console.error(err);
@@ -706,6 +706,19 @@ async function loadStaticSnapshot(isManualClick){
       currentMonthKey = mdata.current_month || currentMonthKey;
       monthlyGeneratedThrough = mdata.current_month_through || monthlyGeneratedThrough;
       buildMonthOptions();
+    }
+  } catch(err){
+    console.error(err);
+  }
+  try {
+    // Day-level history accumulates forever (unlike the rolling 30-day live-snapshot.json) —
+    // see scripts/update_snapshot.py's daily section for how it grows over time.
+    const dres = await fetch('data/daily-snapshot.json', { cache: 'no-store' });
+    if (dres.ok){
+      const ddata = await dres.json();
+      if (ddata.daily_summary) DAILY_SUMMARY = ddata.daily_summary;
+      if (ddata.spend_by_day) SPEND_BY_DAY = ddata.spend_by_day;
+      dailyHistoryStart = ddata.history_start || dailyHistoryStart;
     }
   } catch(err){
     console.error(err);
@@ -916,13 +929,13 @@ function computeMonthlyCR(v){
     return { key: ym, cr: dau ? lead/dau : 0, dau };
   });
 }
-// Only the rolling last-30-days window has day-level data (DAILY_SUMMARY/SPEND_BY_DAY come
-// from the daily cron, which only keeps a 30-day lookback) — so when the top month/YTD filter
-// points at a specific calendar month, we slice down to just that month's days out of the
-// 30 available rather than pretending to have day-level history for arbitrary past months.
+// DAILY_SUMMARY/SPEND_BY_DAY hold full accumulated history since dailyHistoryStart (grows
+// forever, see scripts/update_snapshot.py) — when the top month/YTD filter points at a
+// specific calendar month, slice down to just that month's days.
 function daysForSelectedMonth(){
   const days = Object.keys(DAILY_SUMMARY).sort();
-  if (selectedMonth === 'last30' || selectedMonth === 'ytd') return days;
+  if (selectedMonth === 'last30') return days.slice(-30);
+  if (selectedMonth === 'ytd') return days;
   return days.filter(d => d.slice(0,7) === selectedMonth);
 }
 function computeDailyCR(v){
@@ -986,7 +999,7 @@ function renderMonthlyTrend(v){
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế (rê chuột để xem số) &nbsp;
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang, số hiện bên phải)':' tháng đó'}.
     </div>
-    ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có cho 30 ngày gần nhất.</div>` : `
+    ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có từ ${dailyHistoryStart?fmtDateVN(dailyHistoryStart):'đầu năm'} trở đi.</div>` : `
     <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:${isDay?'24px':'8px'} 4px 0;overflow-x:visible;">
       ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>
       <div style="position:absolute;right:6px;top:${Math.max(0,8+goalLine-14)}px;font-family:var(--mono);font-size:10px;color:#6ab0ff;background:var(--panel);padding:0 4px;z-index:2;">target ${pct(lastGoalCr)}</div>`:''}
@@ -1071,7 +1084,7 @@ function renderMonthlyCPLTrend(v){
       <span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:2px;vertical-align:middle;"></span> = cột đặc: số thực tế (rê chuột để xem số) &nbsp;
       <span style="display:inline-block;width:10px;height:10px;border:2px dashed #6ab0ff;border-radius:2px;vertical-align:middle;"></span> = cột viền chấm: target${isDay?' tháng hiện tại (đường ngang, số hiện bên phải)':' tháng đó'}.
     </div>
-    ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có cho 30 ngày gần nhất.</div>` : `
+    ${noDayData ? `<div class="note-box" style="margin-top:8px;">Chưa có data theo ngày cho khung thời gian đang chọn (${monthLabel()}) — data theo ngày chỉ có từ ${dailyHistoryStart?fmtDateVN(dailyHistoryStart):'đầu năm'} trở đi.</div>` : `
     <div style="position:relative;display:flex;align-items:flex-end;gap:${gap}px;padding:${isDay?'24px':'8px'} 4px 0;overflow-x:visible;">
       ${goalLine!=null?`<div style="position:absolute;left:4px;right:4px;top:${8+goalLine}px;border-top:2px dashed #6ab0ff;z-index:1;"></div>
       <div style="position:absolute;right:6px;top:${Math.max(0,8+goalLine-14)}px;font-family:var(--mono);font-size:10px;color:#6ab0ff;background:var(--panel);padding:0 4px;z-index:2;">target ${fmtVND(lastGoal)}</div>`:''}
