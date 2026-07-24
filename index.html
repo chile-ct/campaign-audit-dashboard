@@ -207,13 +207,19 @@ const GOALS_MONTHLY = {
     cpl: {"2026-01":1959,"2026-02":1922,"2026-03":1181,"2026-04":1133,"2026-05":1263,"2026-06":2049,"2026-07":2091,"2026-08":2307,"2026-09":2286,"2026-10":1288,"2026-11":1060,"2026-12":462}
   }
 };
-/* Annual-average fallback (derived from GOALS_MONTHLY) — used for YTD/last30 blends and as a
-   safety default when a specific month isn't in GOALS_MONTHLY. */
+/* FY (FC2) target fallback — matches the "Growth Direction 2026" deck's Digital Campaigns FY
+   column (section 04, driver 1), volume-weighted across the year (e.g. cpl = full-year budget
+   / full-year leads), NOT a simple average of the 12 GOALS_MONTHLY values — those two methods
+   diverge whenever monthly volume varies (which it does, heavily, toward H2). Used for
+   YTD/last30 blends and as a safety default when a specific month isn't in GOALS_MONTHLY.
+   cr values are computed the same way (sum dauwlead / sum daus across all 12 months) directly
+   from the deck's underlying monthly arrays, which is more precise than the deck's own rounded
+   1-decimal % display. Re-derive from the deck if its FY numbers change. */
 const GOALS = {
-  pty:  { cpl: 2610, cr: 0.1153, cp_dau: 988,  cp_dwl: 8633, cp_mau: 1478, cp_mwl: 12336 },
-  jobs: { cpl: 2217, cr: 0.1643, cp_dau: 1141, cp_dwl: 6968, cp_mau: 1790, cp_mwl: 10580 },
-  veh:  { cpl: 673,  cr: 0.0794, cp_dau: 312,  cp_dwl: 4064, cp_mau: 535,  cp_mwl: 6794  },
-  gds:  { cpl: 1583, cr: 0.1484, cp_dau: 588,  cp_dwl: 4001, cp_mau: 1267, cp_mwl: 7803  }
+  pty:  { cpl: 2754, cr: 0.1153, cp_dau: 1051, cp_dwl: 9117, cp_mau: 1575, cp_mwl: 13065 },
+  jobs: { cpl: 2296, cr: 0.1647, cp_dau: 1195, cp_dwl: 7253, cp_mau: 1863, cp_mwl: 11055 },
+  veh:  { cpl: 718,  cr: 0.0794, cp_dau: 354,  cp_dwl: 4458, cp_mau: 620,  cp_mwl: 7947  },
+  gds:  { cpl: 1570, cr: 0.1484, cp_dau: 589,  cp_dwl: 3966, cp_mau: 1177, cp_mwl: 7789  }
 };
 function monthlyGoal(v, ym){
   const m = GOALS_MONTHLY[v];
