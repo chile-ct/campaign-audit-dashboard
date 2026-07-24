@@ -33,6 +33,10 @@ jobs:
           python scripts/update_snapshot.py
 
       - name: Commit and push if changed
+        # Always run this even if "Update snapshot" fails partway through — it writes each
+        # data/*.json file as soon as that section succeeds, so a later section's error (e.g.
+        # a transient BigQuery hiccup) shouldn't discard files that were already updated fine.
+        if: always()
         run: |
           git config user.name "dashboard-bot"
           git config user.email "chile@chotot.vn"

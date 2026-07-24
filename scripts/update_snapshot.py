@@ -347,58 +347,66 @@ else:
     """)
     print(f"  {len(daily_funnel_rows)} rows")
 
-    print(f"Querying BigQuery (daily spend, {query_start} → {query_end})...")
-    daily_spend_rows = run(f"""
-    SELECT date AS date, campaign AS campaign, SUM(lead_daily) AS total_lead, SUM(spend_vnd) AS spend_vnd
-    FROM `chotot-dwh.ct_digital.kiet_digital_campaign_daily`
-    WHERE date BETWEEN '{query_start.isoformat()}' AND '{query_end.isoformat()}'
-    GROUP BY date, campaign
-    HAVING spend_vnd > 0
-    """)
-    print(f"  {len(daily_spend_rows)} rows")
-
-    if len(daily_funnel_rows) < 1:
+    is_multi_day_range = query_end > query_start
+    if len(daily_funnel_rows) < 1 and not is_multi_day_range:
+        # Single-day range with 0 rows is the normal steady state: the source table
+        # (traffic_visit_detail) lags ~1 day, so "today" usually has no rows yet when the
+        # cron runs. Skip gracefully (don't touch daily-snapshot.json) — tomorrow's run
+        # will retry this same day since we never recorded it as done.
+        print(f"No data yet for {query_start} (source table lag) — will retry next run.")
+    elif len(daily_funnel_rows) < 1 and is_multi_day_range:
+        # A multi-day range with zero rows is suspicious (real gap, not just today's lag)
+        # — worth failing loudly instead of silently writing an incomplete file.
         raise SystemExit(
-            f"Daily sanity check failed (daily_funnel=0 rows for {query_start}→{query_end}) "
-            f"— refusing to update daily-snapshot.json"
+            f"Daily sanity check failed (daily_funnel=0 rows for {query_start}→{query_end}, "
+            f"a multi-day range) — refusing to update daily-snapshot.json"
         )
+    else:
+        print(f"Querying BigQuery (daily spend, {query_start} → {query_end})...")
+        daily_spend_rows = run(f"""
+        SELECT date AS date, campaign AS campaign, SUM(lead_daily) AS total_lead, SUM(spend_vnd) AS spend_vnd
+        FROM `chotot-dwh.ct_digital.kiet_digital_campaign_daily`
+        WHERE date BETWEEN '{query_start.isoformat()}' AND '{query_end.isoformat()}'
+        GROUP BY date, campaign
+        HAVING spend_vnd > 0
+        """)
+        print(f"  {len(daily_spend_rows)} rows")
 
-    for r in daily_funnel_rows:
-        v, ch = r['vertical'], r['channelGrouping']
-        if v not in VERTICALS:
-            continue
-        d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
-        daily['daily_summary'].setdefault(d, {vv: {
-            "Display": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
-            "Paid Search": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
-        } for vv in VERTICALS})
-        daily['daily_summary'][d][v][ch] = {
-            "dau": int(r['dau']), "adview": int(r['dau_w_adview']),
-            "lead": int(r['dau_w_lead']), "totalLead": int(r['total_lead'] or 0),
-        }
+        for r in daily_funnel_rows:
+            v, ch = r['vertical'], r['channelGrouping']
+            if v not in VERTICALS:
+                continue
+            d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
+            daily['daily_summary'].setdefault(d, {vv: {
+                "Display": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
+                "Paid Search": {"dau": 0, "adview": 0, "lead": 0, "totalLead": 0},
+            } for vv in VERTICALS})
+            daily['daily_summary'][d][v][ch] = {
+                "dau": int(r['dau']), "adview": int(r['dau_w_adview']),
+                "lead": int(r['dau_w_lead']), "totalLead": int(r['total_lead'] or 0),
+            }
 
-    for r in daily_spend_rows:
-        if r['spend_vnd'] is None:
-            continue
-        d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
-        daily['spend_by_day'].setdefault(d, {})[r['campaign']] = {
-            "lead": int(r['total_lead']) if r['total_lead'] is not None else 0,
-            "spend": round(r['spend_vnd']),
-        }
+        for r in daily_spend_rows:
+            if r['spend_vnd'] is None:
+                continue
+            d = r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date'])
+            daily['spend_by_day'].setdefault(d, {})[r['campaign']] = {
+                "lead": int(r['total_lead']) if r['total_lead'] is not None else 0,
+                "spend": round(r['spend_vnd']),
+            }
 
-    daily['generated_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    # last_day must reflect the actual max date BigQuery returned data for, NOT query_end —
-    # the source table lags ~1 day, so query_end (today) often has zero rows yet. If we
-    # recorded last_day = today anyway, tomorrow's query_start would skip today forever,
-    # permanently losing that day once the source finally catches up.
-    recorded_dates = sorted(daily['daily_summary'].keys())
-    daily['last_day'] = recorded_dates[-1] if recorded_dates else query_end.isoformat()
-    daily['history_start'] = DAILY_HISTORY_START.isoformat()
+        daily['generated_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        # last_day must reflect the actual max date BigQuery returned data for, NOT
+        # query_end — a multi-day backfill can still legitimately end short of query_end
+        # if the last day or two haven't landed in the source table yet.
+        recorded_dates = sorted(daily['daily_summary'].keys())
+        daily['last_day'] = recorded_dates[-1] if recorded_dates else query_end.isoformat()
+        daily['history_start'] = DAILY_HISTORY_START.isoformat()
 
-    os.makedirs(os.path.dirname(DAILY_JSON), exist_ok=True)
-    with open(DAILY_JSON, 'w') as f:
-        json.dump(daily, f)
+        os.makedirs(os.path.dirname(DAILY_JSON), exist_ok=True)
+        with open(DAILY_JSON, 'w') as f:
+            json.dump(daily, f)
 
-    all_days = sorted(daily['daily_summary'].keys())
-    print(f"OK data/daily-snapshot.json updated — {len(all_days)} days on file "
-          f"({all_days[0]} → {all_days[-1]})")
+        all_days = sorted(daily['daily_summary'].keys())
+        print(f"OK data/daily-snapshot.json updated — {len(all_days)} days on file "
+              f"({all_days[0]} → {all_days[-1]})")
