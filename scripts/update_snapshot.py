@@ -10,6 +10,11 @@ Refreshes:
   3. Day-level history since DAILY_HISTORY_START (data/daily-snapshot.json) —
      accumulates forever; each run only queries the days not yet on file (usually
      just 1 day), never re-fetching or dropping already-recorded days.
+  4. PTY segment demand-supply table (data/segment-demand.json) — reads the
+     mkt-director's own weekly ct_nha.transform__pty_serviceable_effectiveness_daily
+     table (grain: segment x week) and cross-references it with our own digital
+     (Paid Search/Display) lead attribution per segment, computed fresh each run.
+     Only re-queries when a new week_ending appears upstream (weekly cadence).
 The "save" metric (DAU w/ Save) is NOT re-queried daily (source query is ~28GB) —
 it is carried forward from the previous snapshot.
 """
@@ -20,6 +25,7 @@ PROJECT = "chotot-dwh"
 DATA_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'live-snapshot.json')
 MONTHLY_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'monthly-snapshot.json')
 DAILY_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'daily-snapshot.json')
+SEGMENT_JSON = os.path.join(os.path.dirname(__file__), '..', 'data', 'segment-demand.json')
 DAILY_HISTORY_START = datetime.date(2026, 1, 1)  # matches the monthly data's start
 VERTICALS = ['pty', 'veh', 'gds', 'jobs']
 
@@ -410,3 +416,174 @@ else:
         all_days = sorted(daily['daily_summary'].keys())
         print(f"OK data/daily-snapshot.json updated — {len(all_days)} days on file "
               f"({all_days[0]} → {all_days[-1]})")
+
+# ==========================================================================
+# PTY SEGMENT DEMAND — weekly. Reads the mkt-director's own
+# ct_nha.transform__pty_serviceable_effectiveness_daily table (segment x week
+# grain) and cross-references it with our own digital (Paid Search/Display)
+# lead attribution per segment. Only re-runs when a new week_ending appears
+# upstream — this table only updates weekly, so most daily runs are a no-op.
+# ==========================================================================
+print("Checking latest week_ending in ct_nha.transform__pty_serviceable_effectiveness_daily...")
+latest_week_rows = run("""
+SELECT MAX(week_ending) AS max_week
+FROM `chotot-dwh.ct_nha.transform__pty_serviceable_effectiveness_daily`
+""")
+latest_week = latest_week_rows[0]['max_week']
+latest_week_str = latest_week.isoformat() if latest_week else None
+
+segment_data = {}
+if os.path.exists(SEGMENT_JSON):
+    with open(SEGMENT_JSON) as f:
+        segment_data = json.load(f)
+
+if not latest_week_str:
+    print("No week_ending found upstream — skipping segment demand update.")
+elif segment_data.get('pty', {}).get('week_ending') == latest_week_str:
+    print(f"Segment demand already up to date for week {latest_week_str} — skipping.")
+else:
+    window_start = (latest_week - datetime.timedelta(days=6)).isoformat()
+    window_end = latest_week.isoformat()
+
+    print(f"Querying BigQuery (PTY segment demand-supply, week {window_start} → {window_end})...")
+    effectiveness_rows = run(f"""
+    SELECT segment_full, domain, category_name, region, tier, is_focus_segment,
+      distinct_ads, dau_w_lead, total_leads, total_lead_need, lead_deficit,
+      additional_dau_needed, quadrant_demand_supply
+    FROM `chotot-dwh.ct_nha.transform__pty_serviceable_effectiveness_daily`
+    WHERE week_ending = '{window_end}'
+    ORDER BY lead_deficit DESC
+    """)
+    print(f"  {len(effectiveness_rows)} rows")
+
+    print(f"Querying BigQuery (digital-campaign leads by PTY segment, week {window_start} → {window_end})...")
+    digital_rows = run(f"""
+    WITH digital_leads AS (
+      SELECT l.ad_id, COUNT(*) AS n_leads
+      FROM `chotot-dwh.chotot_data.traffic_lead_detail` l
+      JOIN `chotot-dwh.chotot_data.traffic_visit_detail` v
+        ON l.clientId = v.clientId AND l.visitId = v.visitId AND l.date = v.date
+      WHERE l.date BETWEEN '{window_start}' AND '{window_end}'
+        AND v.date BETWEEN '{window_start}' AND '{window_end}'
+        AND l.category BETWEEN 1000 AND 1050
+        AND v.channelGrouping IN ('Paid Search','Display')
+        AND v.is_bot IS NOT TRUE
+      GROUP BY l.ad_id
+    ),
+    ad_w_info AS (
+      SELECT
+        a.ad_id,
+        CASE
+          WHEN a.category = 1010 THEN 'Apartments'
+          WHEN a.category = 1020 THEN 'Houses'
+          WHEN a.category = 1030 THEN 'Offices'
+          WHEN a.category = 1040 THEN 'Land'
+          WHEN a.category = 1050 THEN 'Rooms'
+        END AS category_name,
+        CASE
+          WHEN a.city_name IN ('Tp Hồ Chí Minh') THEN 'HCM'
+          WHEN a.city_name IN ('Bình Dương')      THEN 'BD'
+          WHEN a.city_name IN ('Hà Nội')          THEN 'HN'
+          WHEN a.city_name IN ('Đà Nẵng')         THEN 'DN'
+          ELSE 'other'
+        END AS region,
+        CASE
+          WHEN a.ad_type = 'sell' AND p.segment IS NOT NULL THEN 'primary_sale'
+          WHEN a.ad_type = 'sell' AND p.segment IS NULL     THEN 'secondary_sale'
+          WHEN a.ad_type = 'let'                            THEN 'rental'
+        END AS domain,
+        CASE
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2026 AND a.city_name IN ('Hà Nội') AND a.price <  (t.mid_tier  * 1.3225) THEN 'low'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2026 AND a.city_name IN ('Hà Nội') AND a.price <  (t.high_tier * 1.3225) THEN 'mid'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2026 AND a.city_name IN ('Hà Nội') AND a.price >= (t.high_tier * 1.3225) THEN 'high'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2026 AND a.city_name NOT IN ('Hà Nội') AND a.price <  (t.mid_tier  * 1.265) THEN 'low'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2026 AND a.city_name NOT IN ('Hà Nội') AND a.price <  (t.high_tier * 1.265) THEN 'mid'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2026 AND a.city_name NOT IN ('Hà Nội') AND a.price >= (t.high_tier * 1.265) THEN 'high'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2025 AND a.price <  (t.mid_tier  * 1.10) THEN 'low'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2025 AND a.price <  (t.high_tier * 1.10) THEN 'mid'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2025 AND a.price >= (t.high_tier * 1.10) THEN 'high'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2024 AND a.price <  t.mid_tier           THEN 'low'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2024 AND a.price <  t.high_tier          THEN 'mid'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) = 2024 AND a.price >= t.high_tier          THEN 'high'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) < 2024 AND a.price <  n.price_segment      THEN 'low'
+          WHEN EXTRACT(YEAR FROM a.first_approved_time) < 2024 AND a.price >= n.price_segment      THEN 'high_mid'
+        END AS tier
+      FROM `chotot-dwh.chotot_data.ad` a
+      LEFT JOIN `chotot-dwh.ct_nha.tuan_price_segment` t
+        ON a.city_id = t.city AND a.category = t.category AND a.ad_type = t.ad_type
+      LEFT JOIN `chotot-dwh.ct_nha.nguyen_new_market_segmentation_2025` n
+        ON a.city_name = n.city_name AND a.ad_type = n.ad_type AND a.category = n.category
+      LEFT JOIN (
+        SELECT ad_id, 'primary' AS segment FROM `chotot-dwh.ct_nha.project_primary_ad_nt`
+      ) p ON a.ad_id = p.ad_id
+      WHERE a.ad_id IN (SELECT ad_id FROM digital_leads)
+        AND a.category BETWEEN 1000 AND 1050
+        AND a.first_approved_time IS NOT NULL
+    )
+    SELECT
+      CONCAT(wi.domain, '-', wi.category_name, '-', wi.region, '-', COALESCE(wi.tier,'unknown')) AS segment_full,
+      SUM(dl.n_leads) AS digital_leads
+    FROM digital_leads dl
+    JOIN ad_w_info wi ON dl.ad_id = wi.ad_id
+    GROUP BY segment_full
+    """)
+    print(f"  {len(digital_rows)} rows")
+
+    # ---- sanity check: never let a broken/partial query corrupt the file ----
+    if len(effectiveness_rows) < 10:
+        raise SystemExit(
+            f"Segment demand sanity check failed (effectiveness_rows={len(effectiveness_rows)} "
+            f"for week {window_end}) — refusing to update segment-demand.json"
+        )
+
+    digital_by_segment = {r['segment_full']: int(r['digital_leads'] or 0) for r in digital_rows}
+
+    segments = []
+    grand = {"distinct_ads": 0, "dau_w_lead": 0.0, "total_leads": 0, "total_lead_need": 0.0,
+              "lead_gap": 0.0, "dwl_gap": 0.0, "digital_leads": 0}
+    for r in effectiveness_rows:
+        digital_leads = digital_by_segment.get(r['segment_full'], 0)
+        total_leads = int(r['total_leads'] or 0)
+        segments.append({
+            "segment_full": r['segment_full'],
+            "domain": r['domain'],
+            "category_name": r['category_name'],
+            "region": r['region'],
+            "tier": r['tier'],
+            "is_focus_segment": r['is_focus_segment'],
+            "distinct_ads": int(r['distinct_ads'] or 0),
+            "dau_w_lead": round(r['dau_w_lead'] or 0, 1),
+            "total_leads": total_leads,
+            "total_lead_need": round(r['total_lead_need'] or 0, 1),
+            "lead_gap": round(r['lead_deficit'] or 0, 1),
+            "dwl_gap": round(r['additional_dau_needed'] or 0, 1) if r['additional_dau_needed'] is not None else None,
+            "quadrant_demand_supply": r['quadrant_demand_supply'],
+            "digital_leads": digital_leads,
+            "digital_pct": round(digital_leads / total_leads, 4) if total_leads > 0 else None,
+        })
+        grand["distinct_ads"] += int(r['distinct_ads'] or 0)
+        grand["dau_w_lead"] += (r['dau_w_lead'] or 0)
+        grand["total_leads"] += total_leads
+        grand["total_lead_need"] += (r['total_lead_need'] or 0)
+        grand["lead_gap"] += (r['lead_deficit'] or 0)
+        grand["digital_leads"] += digital_leads
+
+    grand["dau_w_lead"] = round(grand["dau_w_lead"], 1)
+    grand["total_lead_need"] = round(grand["total_lead_need"], 1)
+    grand["lead_gap"] = round(grand["lead_gap"], 1)
+    grand["digital_pct"] = round(grand["digital_leads"] / grand["total_leads"], 4) if grand["total_leads"] > 0 else None
+
+    segment_data['pty'] = {
+        "week_ending": window_end,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "segments": segments,
+        "grand_total": grand,
+    }
+
+    os.makedirs(os.path.dirname(SEGMENT_JSON), exist_ok=True)
+    with open(SEGMENT_JSON, 'w') as f:
+        json.dump(segment_data, f)
+
+    digital_pct_str = f"{grand['digital_pct']*100:.1f}%" if grand['digital_pct'] is not None else '—'
+    print(f"OK data/segment-demand.json updated — week {window_end}, {len(segments)} segments, "
+          f"{grand['digital_leads']:,} / {grand['total_leads']:,} leads from digital ({digital_pct_str})")

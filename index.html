@@ -583,6 +583,10 @@ let lastRefreshedAt = null;
 let DAILY_SUMMARY = {};
 let SPEND_BY_DAY = {};
 let dailyHistoryStart = null;
+// Weekly segment demand-supply table, per vertical (currently PTY only — see
+// scripts/update_snapshot.py). Empty until first fetch; missing vertical keys just
+// mean no segment table is available for that vertical yet.
+let SEGMENT_DEMAND = {};
 
 function bridgeAvailable(){
   return !!(window.cowork && typeof window.cowork.callMcpTool === 'function');
@@ -743,6 +747,16 @@ async function loadStaticSnapshot(isManualClick){
       if (ddata.daily_summary) DAILY_SUMMARY = ddata.daily_summary;
       if (ddata.spend_by_day) SPEND_BY_DAY = ddata.spend_by_day;
       dailyHistoryStart = ddata.history_start || dailyHistoryStart;
+    }
+  } catch(err){
+    console.error(err);
+  }
+  try {
+    // Weekly segment demand-supply table (currently PTY only) — see
+    // scripts/update_snapshot.py's segment demand section.
+    const sres = await fetch('data/segment-demand.json', { cache: 'no-store' });
+    if (sres.ok){
+      SEGMENT_DEMAND = await sres.json();
     }
   } catch(err){
     console.error(err);
@@ -1291,6 +1305,69 @@ function getSpendInfo(campaign){
 }
 function fmtVND(n){ return Math.round(n).toLocaleString('en-US') + 'đ'; }
 
+// Weekly segment demand-supply table (currently PTY only — see scripts/update_snapshot.py).
+// Cross-references the mkt-director's own quadrant table with our digital-campaign lead share
+// per segment, so we can see how much of each segment's lead volume digital is contributing.
+function segmentQuadrantColor(q){
+  if (q === 'Extreme Under Demand') return '#FF2636';
+  if (q === 'Under Demand') return '#FFBA00';
+  if (q === 'Balance') return '#2ecc71';
+  if (q === 'Under Supply') return '#6ab0ff';
+  if (q === 'Extreme Under Supply') return '#2561CF';
+  return 'var(--muted)';
+}
+function renderSegmentDemand(v){
+  const data = SEGMENT_DEMAND[v];
+  if (!data || !data.segments || !data.segments.length) return '';
+  const segs = data.segments;
+  const g = data.grand_total || {};
+  const rows = segs.map(s=>{
+    const qColor = segmentQuadrantColor(s.quadrant_demand_supply);
+    const digitalTxt = s.digital_pct != null ? pct(s.digital_pct) : '—';
+    const digitalColor = s.digital_pct == null ? 'var(--muted)' : (s.digital_pct >= 0.3 ? '#2ecc71' : (s.digital_pct >= 0.15 ? '#FFBA00' : '#ff6b76'));
+    return `<tr>
+      <td class="campaign-name">${s.segment_full}</td>
+      <td><span class="ch-pill" style="background:${qColor}22;color:${qColor}">${s.quadrant_demand_supply}</span></td>
+      <td>${s.is_focus_segment}</td>
+      <td>${fmt(s.distinct_ads)}</td>
+      <td>${s.dau_w_lead}</td>
+      <td>${fmt(s.total_leads)}</td>
+      <td>${fmt(Math.round(s.total_lead_need))}</td>
+      <td>${fmt(Math.round(s.lead_gap))}</td>
+      <td>${s.dwl_gap != null ? fmt(Math.round(s.dwl_gap)) : '—'}</td>
+      <td style="color:${digitalColor};font-weight:700;">${digitalTxt}</td>
+    </tr>`;
+  }).join('');
+  const totalDigitalTxt = g.digital_pct != null ? pct(g.digital_pct) : '—';
+  return `
+  <div class="panel">
+    <h2>Segment Demand-Supply — ${VERTICALS[v].name} <span style="font-size:11px;color:var(--muted);font-weight:400;">(tuần đến ${fmtDateVN(data.week_ending)})</span></h2>
+    <div class="desc">
+      Nguồn: <b>ct_nha.transform__pty_serviceable_effectiveness_daily</b> (cập nhật hàng tuần bởi mkt-director) —
+      cột <b>% Digital</b> là % <b>Total Leads</b> của segment đó đến từ digital campaign (paid Search/Display) của MKT Growth, tính riêng mỗi tuần.
+    </div>
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Segment</th><th>Quadrant</th><th>Focus</th><th>Distinct ads</th><th>DAU w/Lead</th>
+        <th>Total Leads</th><th>Lead Need</th><th>Lead Gap</th><th>DwL Gap</th><th>% Digital</th>
+      </tr></thead>
+      <tbody>
+        ${rows}
+        <tr style="font-weight:700;border-top:1px solid var(--line-strong, var(--border));">
+          <td class="campaign-name" colspan="3">Grand total</td>
+          <td>${fmt(g.distinct_ads)}</td>
+          <td>${g.dau_w_lead}</td>
+          <td>${fmt(g.total_leads)}</td>
+          <td>${fmt(Math.round(g.total_lead_need))}</td>
+          <td>${fmt(Math.round(g.lead_gap))}</td>
+          <td>—</td>
+          <td>${totalDigitalTxt}</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
 function renderTable(v){
   const rows = getFilteredSortedRows(v);
   const cols = [ {key:'campaign',label:'Campaign'}, {key:'channel',label:'Channel'}, {key:'dau',label:'DAU'},
@@ -1519,7 +1596,7 @@ function render(){
   buildTabs();
   const v = currentVertical;
   const monthNote = `<div style="margin:-6px 0 14px;color:var(--muted);font-size:11.5px;font-family:var(--mono);">📅 Đang xem: <b style="color:var(--yellow)">${monthLabel()}</b> — bảng Campaign Detail bên dưới đổi theo lựa chọn này (root-cause deep-dive trong drawer chỉ dựa trên xu hướng theo tháng, không đổi theo khung thời gian đang xem).</div>`;
-  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderTable(v);
+  document.getElementById('content').innerHTML = monthNote + renderCards(v) + renderMonthlyTrend(v) + renderMonthlyCPLTrend(v) + renderSupplyDemandCheck(v) + renderSegmentDemand(v) + renderTable(v);
   document.querySelectorAll('thead th').forEach(th=>{
     th.addEventListener('click', ()=>{ const key=th.dataset.key; if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=1; } render(); });
   });

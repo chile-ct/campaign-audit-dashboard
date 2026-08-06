@@ -41,7 +41,7 @@ jobs:
           git config user.name "dashboard-bot"
           git config user.email "chile@chotot.vn"
 
-          git add data/live-snapshot.json data/monthly-snapshot.json data/daily-snapshot.json
+          git add data/live-snapshot.json data/monthly-snapshot.json data/daily-snapshot.json data/segment-demand.json
 
           if git diff --staged --quiet; then
             echo "No changes"
